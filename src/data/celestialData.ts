@@ -1,0 +1,562 @@
+export interface CelestialBodyData {
+  id: string;
+  name: string;
+  displayName: string;
+  type: 'star' | 'rocky' | 'atmospheric' | 'gas_giant' | 'ice_giant' | 'moon' | 'black_hole';
+  diameterKm: number;
+  massKg: string;
+  gravityMs2: number;
+  dayLengthHours: number;
+  orbitalPeriodDays: number;
+  meanTemperatureC: number;
+  moonsCount: number;
+  axialTiltDeg: number;
+  orbitalInclinationDeg?: number;
+  orbitalDistanceAU: number;
+  visualRadius: number;
+  visualDistance: number;
+  orbitalSpeed: number; // relative base speed
+  rotationSpeed: number;
+  color: string;
+  emissiveColor?: string;
+  description: string;
+  parentPlanetId?: string;
+  moons?: string[];
+  atmosphere?: {
+    color: string;
+    density: number;
+    clouds?: boolean;
+  };
+  rings?: {
+    innerRadius: number;
+    outerRadius: number;
+    texture?: string;
+  };
+}
+
+export const CELESTIAL_BODIES: Record<string, CelestialBodyData> = {
+  sun: {
+    id: 'sun',
+    name: 'Sun',
+    displayName: 'The Sun (Sol)',
+    type: 'star',
+    diameterKm: 1392700,
+    massKg: '1.989 × 10³⁰ kg',
+    gravityMs2: 274.0,
+    dayLengthHours: 600.0,
+    orbitalPeriodDays: 0,
+    meanTemperatureC: 5500,
+    moonsCount: 8,
+    axialTiltDeg: 7.25,
+    orbitalDistanceAU: 0,
+    visualRadius: 18.0,
+    visualDistance: 0,
+    orbitalSpeed: 0,
+    rotationSpeed: 0.05,
+    color: '#ffaa22',
+    emissiveColor: '#ff6600',
+    description: 'The yellow dwarf star at the center of the Solar System, containing 99.86% of the system\'s mass.'
+  },
+  mercury: {
+    id: 'mercury',
+    name: 'Mercury',
+    displayName: 'Mercury',
+    type: 'rocky',
+    diameterKm: 4879,
+    massKg: '3.301 × 10²³ kg',
+    gravityMs2: 3.7,
+    dayLengthHours: 4222.6,
+    orbitalPeriodDays: 88,
+    meanTemperatureC: 167,
+    moonsCount: 0,
+    axialTiltDeg: 0.03,
+    orbitalInclinationDeg: 7.0,
+    orbitalDistanceAU: 0.387,
+    visualRadius: 1.4,
+    visualDistance: 32,
+    orbitalSpeed: 4.15,
+    rotationSpeed: 0.08,
+    color: '#9e9e9e',
+    description: 'The smallest planet and closest to the Sun, with a heavily cratered surface and extreme temperature swings.'
+  },
+  venus: {
+    id: 'venus',
+    name: 'Venus',
+    displayName: 'Venus',
+    type: 'atmospheric',
+    diameterKm: 12104,
+    massKg: '4.867 × 10²⁴ kg',
+    gravityMs2: 8.87,
+    dayLengthHours: 2802.0,
+    orbitalPeriodDays: 224.7,
+    meanTemperatureC: 464,
+    moonsCount: 0,
+    axialTiltDeg: 177.3,
+    orbitalInclinationDeg: 3.39,
+    orbitalDistanceAU: 0.723,
+    visualRadius: 2.3,
+    visualDistance: 48,
+    orbitalSpeed: 1.62,
+    rotationSpeed: -0.04,
+    color: '#e6c280',
+    description: 'Earth\'s "twin" in size, wrapped in a dense, toxic atmosphere of CO2 and sulfuric acid clouds causing runaway greenhouse effect.',
+    atmosphere: {
+      color: '#ffddaa',
+      density: 1.8,
+      clouds: true
+    }
+  },
+  earth: {
+    id: 'earth',
+    name: 'Earth',
+    displayName: 'Earth (Terra)',
+    type: 'atmospheric',
+    diameterKm: 12742,
+    massKg: '5.972 × 10²⁴ kg',
+    gravityMs2: 9.81,
+    dayLengthHours: 24.0,
+    orbitalPeriodDays: 365.25,
+    meanTemperatureC: 15,
+    moonsCount: 1,
+    axialTiltDeg: 23.44,
+    orbitalInclinationDeg: 0.0,
+    orbitalDistanceAU: 1.0,
+    visualRadius: 2.5,
+    visualDistance: 68,
+    orbitalSpeed: 1.0,
+    rotationSpeed: 0.3,
+    color: '#2b82c9',
+    moons: ['moon'],
+    description: 'The blue marble, our oasis in the cosmos and the only known world harboring life, liquid oceans, and plate tectonics.',
+    atmosphere: {
+      color: '#38bdf8',
+      density: 1.0,
+      clouds: true
+    }
+  },
+  moon: {
+    id: 'moon',
+    name: 'Moon',
+    displayName: 'The Moon (Luna)',
+    type: 'moon',
+    parentPlanetId: 'earth',
+    diameterKm: 3474,
+    massKg: '7.342 × 10²² kg',
+    gravityMs2: 1.62,
+    dayLengthHours: 708.7,
+    orbitalPeriodDays: 27.3,
+    meanTemperatureC: -20,
+    moonsCount: 0,
+    axialTiltDeg: 6.68,
+    orbitalInclinationDeg: 5.14,
+    orbitalDistanceAU: 1.00257,
+    visualRadius: 0.65,
+    visualDistance: 4.8, // Distance relative to Earth
+    orbitalSpeed: 4.2,
+    rotationSpeed: 0.05,
+    color: '#b0b5bc',
+    description: 'Earth\'s sole natural satellite, tidally locked with ancient dark basalt maria and heavily cratered highlands.'
+  },
+  mars: {
+    id: 'mars',
+    name: 'Mars',
+    displayName: 'Mars',
+    type: 'rocky',
+    diameterKm: 6779,
+    massKg: '6.417 × 10²³ kg',
+    gravityMs2: 3.72,
+    dayLengthHours: 24.6,
+    orbitalPeriodDays: 687,
+    meanTemperatureC: -65,
+    moonsCount: 2,
+    axialTiltDeg: 25.19,
+    orbitalInclinationDeg: 1.85,
+    orbitalDistanceAU: 1.524,
+    visualRadius: 1.7,
+    visualDistance: 92,
+    orbitalSpeed: 0.53,
+    rotationSpeed: 0.28,
+    color: '#c1440e',
+    moons: ['phobos', 'deimos'],
+    description: 'The Red Planet, home to Olympus Mons—the largest volcano in the Solar System—and dry river valley networks.',
+    atmosphere: {
+      color: '#e59866',
+      density: 0.15
+    }
+  },
+  phobos: {
+    id: 'phobos',
+    name: 'Phobos',
+    displayName: 'Phobos',
+    type: 'moon',
+    parentPlanetId: 'mars',
+    diameterKm: 22.2,
+    massKg: '1.065 × 10¹⁶ kg',
+    gravityMs2: 0.0057,
+    dayLengthHours: 7.66,
+    orbitalPeriodDays: 0.32,
+    meanTemperatureC: -40,
+    moonsCount: 0,
+    axialTiltDeg: 0,
+    orbitalDistanceAU: 1.524,
+    visualRadius: 0.35,
+    visualDistance: 3.2,
+    orbitalSpeed: 8.5,
+    rotationSpeed: 0.15,
+    color: '#8c7d70',
+    description: 'The inner and larger of the two Martian moons, orbiting so close that it will eventually crash into Mars or shatter into a ring.'
+  },
+  deimos: {
+    id: 'deimos',
+    name: 'Deimos',
+    displayName: 'Deimos',
+    type: 'moon',
+    parentPlanetId: 'mars',
+    diameterKm: 12.4,
+    massKg: '1.476 × 10¹⁵ kg',
+    gravityMs2: 0.003,
+    dayLengthHours: 30.35,
+    orbitalPeriodDays: 1.26,
+    meanTemperatureC: -40,
+    moonsCount: 0,
+    axialTiltDeg: 0,
+    orbitalDistanceAU: 1.524,
+    visualRadius: 0.25,
+    visualDistance: 5.4,
+    orbitalSpeed: 4.8,
+    rotationSpeed: 0.1,
+    color: '#9e9185',
+    description: 'The smaller and outermost moon of Mars, covered in a thick layer of regolith that gives it a smooth appearance.'
+  },
+  jupiter: {
+    id: 'jupiter',
+    name: 'Jupiter',
+    displayName: 'Jupiter',
+    type: 'gas_giant',
+    diameterKm: 139820,
+    massKg: '1.898 × 10²⁷ kg',
+    gravityMs2: 24.79,
+    dayLengthHours: 9.93,
+    orbitalPeriodDays: 4333,
+    meanTemperatureC: -110,
+    moonsCount: 95,
+    axialTiltDeg: 3.13,
+    orbitalInclinationDeg: 1.30,
+    orbitalDistanceAU: 5.204,
+    visualRadius: 6.8,
+    visualDistance: 140,
+    orbitalSpeed: 0.28,
+    rotationSpeed: 0.45,
+    color: '#d4a373',
+    moons: ['io', 'europa', 'ganymede', 'callisto'],
+    description: 'The king of planets, a gas giant with massive alternating atmospheric jet streams and the legendary 300-year-old Great Red Spot storm.'
+  },
+  io: {
+    id: 'io',
+    name: 'Io',
+    displayName: 'Io (Volcanic Moon)',
+    type: 'moon',
+    parentPlanetId: 'jupiter',
+    diameterKm: 3643,
+    massKg: '8.93 × 10²² kg',
+    gravityMs2: 1.796,
+    dayLengthHours: 42.5,
+    orbitalPeriodDays: 1.77,
+    meanTemperatureC: -143,
+    moonsCount: 0,
+    axialTiltDeg: 0,
+    orbitalDistanceAU: 5.204,
+    visualRadius: 0.65,
+    visualDistance: 10.5,
+    orbitalSpeed: 5.2,
+    rotationSpeed: 0.15,
+    color: '#f59e0b',
+    description: 'The most geologically active body in the Solar System, with hundreds of active sulfur volcanoes driven by tidal heating.'
+  },
+  europa: {
+    id: 'europa',
+    name: 'Europa',
+    displayName: 'Europa (Ocean Moon)',
+    type: 'moon',
+    parentPlanetId: 'jupiter',
+    diameterKm: 3121,
+    massKg: '4.80 × 10²² kg',
+    gravityMs2: 1.315,
+    dayLengthHours: 85.2,
+    orbitalPeriodDays: 3.55,
+    meanTemperatureC: -160,
+    moonsCount: 0,
+    axialTiltDeg: 0.1,
+    orbitalDistanceAU: 5.204,
+    visualRadius: 0.6,
+    visualDistance: 13.5,
+    orbitalSpeed: 3.8,
+    rotationSpeed: 0.12,
+    color: '#e2e8f0',
+    description: 'A smooth, bright moon wrapped in a global cracked ice shell concealing a subsurface saltwater ocean with more water than all of Earth.'
+  },
+  ganymede: {
+    id: 'ganymede',
+    name: 'Ganymede',
+    displayName: 'Ganymede (Largest Moon)',
+    type: 'moon',
+    parentPlanetId: 'jupiter',
+    diameterKm: 5268,
+    massKg: '1.48 × 10²³ kg',
+    gravityMs2: 1.428,
+    dayLengthHours: 171.7,
+    orbitalPeriodDays: 7.15,
+    meanTemperatureC: -163,
+    moonsCount: 0,
+    axialTiltDeg: 0.2,
+    orbitalDistanceAU: 5.204,
+    visualRadius: 0.85,
+    visualDistance: 17.5,
+    orbitalSpeed: 2.6,
+    rotationSpeed: 0.08,
+    color: '#94a3b8',
+    description: 'The largest moon in the Solar System—bigger than Mercury and Pluto—and the only known moon with its own intrinsic magnetic field.'
+  },
+  callisto: {
+    id: 'callisto',
+    name: 'Callisto',
+    displayName: 'Callisto (Cratered Moon)',
+    type: 'moon',
+    parentPlanetId: 'jupiter',
+    diameterKm: 4820,
+    massKg: '1.08 × 10²³ kg',
+    gravityMs2: 1.235,
+    dayLengthHours: 400.5,
+    orbitalPeriodDays: 16.69,
+    meanTemperatureC: -171,
+    moonsCount: 0,
+    axialTiltDeg: 0,
+    orbitalDistanceAU: 5.204,
+    visualRadius: 0.78,
+    visualDistance: 21.5,
+    orbitalSpeed: 1.8,
+    rotationSpeed: 0.05,
+    color: '#64748b',
+    description: 'The most heavily cratered object in the Solar System, an ancient un-differentiated world of rock and ice frozen in time.'
+  },
+  saturn: {
+    id: 'saturn',
+    name: 'Saturn',
+    displayName: 'Saturn',
+    type: 'gas_giant',
+    diameterKm: 116460,
+    massKg: '5.683 × 10²⁶ kg',
+    gravityMs2: 10.44,
+    dayLengthHours: 10.7,
+    orbitalPeriodDays: 10759,
+    meanTemperatureC: -140,
+    moonsCount: 146,
+    axialTiltDeg: 26.73,
+    orbitalInclinationDeg: 2.49,
+    orbitalDistanceAU: 9.582,
+    visualRadius: 5.5,
+    visualDistance: 190,
+    orbitalSpeed: 0.22,
+    rotationSpeed: 0.42,
+    color: '#e2d4a8',
+    moons: ['titan', 'enceladus'],
+    description: 'The jewel of the Solar System, encircled by an immense, dazzling ring system composed of billions of water ice fragments.',
+    rings: {
+      innerRadius: 8.0,
+      outerRadius: 14.5
+    }
+  },
+  titan: {
+    id: 'titan',
+    name: 'Titan',
+    displayName: 'Titan (Atmospheric Moon)',
+    type: 'moon',
+    parentPlanetId: 'saturn',
+    diameterKm: 5149,
+    massKg: '1.345 × 10²³ kg',
+    gravityMs2: 1.352,
+    dayLengthHours: 382.7,
+    orbitalPeriodDays: 15.95,
+    meanTemperatureC: -179,
+    moonsCount: 0,
+    axialTiltDeg: 0,
+    orbitalDistanceAU: 9.582,
+    visualRadius: 0.8,
+    visualDistance: 18.0,
+    orbitalSpeed: 2.2,
+    rotationSpeed: 0.08,
+    color: '#d97706',
+    description: 'Saturn\'s largest moon, wrapped in a dense golden nitrogen atmosphere with liquid methane rivers, lakes, and dunes.',
+    atmosphere: {
+      color: '#fbbf24',
+      density: 1.5
+    }
+  },
+  enceladus: {
+    id: 'enceladus',
+    name: 'Enceladus',
+    displayName: 'Enceladus (Ice Geyser Moon)',
+    type: 'moon',
+    parentPlanetId: 'saturn',
+    diameterKm: 504,
+    massKg: '1.08 × 10²⁰ kg',
+    gravityMs2: 0.113,
+    dayLengthHours: 32.9,
+    orbitalPeriodDays: 1.37,
+    meanTemperatureC: -198,
+    moonsCount: 0,
+    axialTiltDeg: 0,
+    orbitalDistanceAU: 9.582,
+    visualRadius: 0.4,
+    visualDistance: 10.0,
+    orbitalSpeed: 4.8,
+    rotationSpeed: 0.15,
+    color: '#f8fafc',
+    description: 'A brilliant white ice moon whose south polar cryovolcanoes spew gigantic plumes of water vapor and organic molecules into space.'
+  },
+  uranus: {
+    id: 'uranus',
+    name: 'Uranus',
+    displayName: 'Uranus',
+    type: 'ice_giant',
+    diameterKm: 50724,
+    massKg: '8.681 × 10²⁵ kg',
+    gravityMs2: 8.69,
+    dayLengthHours: 17.2,
+    orbitalPeriodDays: 30687,
+    meanTemperatureC: -195,
+    moonsCount: 28,
+    axialTiltDeg: 97.77,
+    orbitalInclinationDeg: 0.77,
+    orbitalDistanceAU: 19.22,
+    visualRadius: 3.8,
+    visualDistance: 240,
+    orbitalSpeed: 0.15,
+    rotationSpeed: -0.25,
+    color: '#4b707d',
+    description: 'An ice giant orbiting on its side at a 98° tilt, with the coldest planetary atmosphere in the Solar System.',
+    atmosphere: {
+      color: '#7dd3fc',
+      density: 0.8
+    }
+  },
+  neptune: {
+    id: 'neptune',
+    name: 'Neptune',
+    displayName: 'Neptune',
+    type: 'ice_giant',
+    diameterKm: 49244,
+    massKg: '1.024 × 10²⁶ kg',
+    gravityMs2: 11.15,
+    dayLengthHours: 16.1,
+    orbitalPeriodDays: 60190,
+    meanTemperatureC: -201,
+    moonsCount: 16,
+    axialTiltDeg: 28.32,
+    orbitalInclinationDeg: 1.77,
+    orbitalDistanceAU: 30.05,
+    visualRadius: 3.7,
+    visualDistance: 290,
+    orbitalSpeed: 0.11,
+    rotationSpeed: 0.26,
+    color: '#3a86ff',
+    moons: ['triton'],
+    description: 'The outermost major planet, an intense azure world wracked by supersonic winds reaching over 2,100 km/h.',
+    atmosphere: {
+      color: '#38bdf8',
+      density: 0.9
+    }
+  },
+  triton: {
+    id: 'triton',
+    name: 'Triton',
+    displayName: 'Triton (Cryo-Moon)',
+    type: 'moon',
+    parentPlanetId: 'neptune',
+    diameterKm: 2707,
+    massKg: '2.14 × 10²² kg',
+    gravityMs2: 0.779,
+    dayLengthHours: 141.0,
+    orbitalPeriodDays: 5.88,
+    meanTemperatureC: -235,
+    moonsCount: 0,
+    axialTiltDeg: 0,
+    orbitalDistanceAU: 30.05,
+    visualRadius: 0.55,
+    visualDistance: 8.5,
+    orbitalSpeed: -3.2, // Retrograde orbit
+    rotationSpeed: 0.1,
+    color: '#c4b5fd',
+    description: 'Neptune\'s largest moon, a captured Kuiper Belt dwarf planet orbiting backward with active nitrogen ice geysers and cantaloupe terrain.'
+  },
+  blackhole: {
+    id: 'blackhole',
+    name: 'Gargantua',
+    displayName: 'Gargantua (Supermassive Black Hole)',
+    type: 'black_hole',
+    diameterKm: 120000000,
+    massKg: '8.15 × 10³⁶ kg (~4.1M Sol)',
+    gravityMs2: 9999999.0,
+    dayLengthHours: 0.001,
+    orbitalPeriodDays: 0,
+    meanTemperatureC: -273.15,
+    moonsCount: 0,
+    axialTiltDeg: 0,
+    orbitalDistanceAU: 999.0,
+    visualRadius: 28.0,
+    visualDistance: 1200, // Placed deep in the background coordinate space
+    orbitalSpeed: 0,
+    rotationSpeed: 1.2,
+    color: '#000000',
+    emissiveColor: '#ff7700',
+    description: 'A supermassive rotating Kerr black hole. Warps space-time via extreme general relativity, creating an Einstein ring, relativistic Doppler-beamed accretion disk, and photon sphere.'
+  }
+};
+
+export const PLANET_KEYS = [
+  'mercury',
+  'venus',
+  'earth',
+  'mars',
+  'jupiter',
+  'saturn',
+  'uranus',
+  'neptune'
+] as const;
+
+export const MOON_KEYS = [
+  'moon',
+  'phobos',
+  'deimos',
+  'io',
+  'europa',
+  'ganymede',
+  'callisto',
+  'titan',
+  'enceladus',
+  'triton'
+] as const;
+
+export const TOUR_SEQUENCE = [
+  'sun',
+  'mercury',
+  'venus',
+  'earth',
+  'moon',
+  'mars',
+  'jupiter',
+  'europa',
+  'saturn',
+  'titan',
+  'uranus',
+  'neptune',
+  'triton',
+  'blackhole'
+] as const;
+
+export const ALL_CELESTIAL_KEYS = [
+  'sun',
+  ...PLANET_KEYS,
+  ...MOON_KEYS,
+  'blackhole'
+] as const;
