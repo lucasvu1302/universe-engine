@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Compass, Globe2, Rocket, Play, Camera, Volume2, Sliders, X, Orbit } from 'lucide-react';
+import { Search, Compass, Globe2, Rocket, Play, Camera, Volume2, Sliders, X, Orbit, Film, Disc } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { CELESTIAL_BODIES, ALL_CELESTIAL_KEYS } from '@/data/celestialData';
 import { CameraManager } from '@/engine/camera/CameraManager';
 import { AudioManager } from '@/engine/audio/AudioManager';
+import { CinematicDirector } from '@/engine/camera/CinematicDirector';
+import { HarmonicesMundiSynth } from '@/engine/audio/HarmonicesMundiSynth';
 
 export const CommandPalette: React.FC = () => {
   const isOpen = useAppStore((state) => state.isCommandPaletteOpen);
@@ -81,6 +83,52 @@ export const CommandPalette: React.FC = () => {
         icon: <Camera className="w-4 h-4 text-rose-400" />,
         action: () => {
           setPhotoMode(true);
+        }
+      },
+      {
+        id: 'cinema-auto',
+        title: 'Enter Cinema Mode (IMAX 2.39:1 Anamorphic)',
+        category: 'Cinema',
+        icon: <Film className="w-4 h-4 text-rose-400" />,
+        action: () => {
+          CinematicDirector.getInstance().enterCinemaMode('AUTO');
+        }
+      },
+      {
+        id: 'cinema-drift',
+        title: 'Cinema: Earth Sunrise Orbital Drift',
+        category: 'Cinema',
+        icon: <Film className="w-4 h-4 text-amber-400" />,
+        action: () => {
+          CinematicDirector.getInstance().enterCinemaMode('ORBITAL_DRIFT');
+        }
+      },
+      {
+        id: 'cinema-rings',
+        title: 'Cinema: Saturn Ice Rings Flyby',
+        category: 'Cinema',
+        icon: <Film className="w-4 h-4 text-sky-400" />,
+        action: () => {
+          CinematicDirector.getInstance().enterCinemaMode('RING_SKI');
+        }
+      },
+      {
+        id: 'cinema-slingshot',
+        title: 'Cinema: Jupiter Gravitational Slingshot',
+        category: 'Cinema',
+        icon: <Film className="w-4 h-4 text-purple-400" />,
+        action: () => {
+          CinematicDirector.getInstance().enterCinemaMode('SLINGSHOT');
+        }
+      },
+      {
+        id: 'kepler-synth',
+        title: 'Toggle Kepler Harmonices Mundi Ambient Synth',
+        category: 'Audio',
+        icon: <Disc className="w-4 h-4 text-indigo-400" />,
+        action: () => {
+          HarmonicesMundiSynth.getInstance().toggle();
+          useAppStore.getState().toggleHarmonicesMundi();
         }
       },
       {

@@ -13,12 +13,14 @@ import {
   Eye,
   EyeOff,
   Search,
-  Orbit
+  Orbit,
+  Film
 } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { CELESTIAL_BODIES, PLANET_KEYS } from '@/data/celestialData';
 import { AudioManager } from '@/engine/audio/AudioManager';
 import { CameraManager } from '@/engine/camera/CameraManager';
+import { CinematicDirector } from '@/engine/camera/CinematicDirector';
 
 export const SuperNav: React.FC = () => {
   const [isPlanetsOpen, setIsPlanetsOpen] = useState(false);
@@ -292,6 +294,19 @@ export const SuperNav: React.FC = () => {
         >
           <Play className="w-3.5 h-3.5 fill-amber-300" />
           <span className="font-medium">Tour</span>
+        </button>
+
+        {/* Cinema Director Mode */}
+        <button
+          onClick={() => {
+            audio.playUIClick();
+            CinematicDirector.getInstance().enterCinemaMode('AUTO');
+          }}
+          className="flex items-center space-x-1 px-2.5 py-1 rounded-full hover:text-white hover:bg-white/10 transition-all text-rose-400 cursor-pointer shrink-0"
+          title="Cinematic Director Mode (Press 'C')"
+        >
+          <Film className="w-3.5 h-3.5 text-rose-400" />
+          <span className="font-medium">Cinema</span>
         </button>
 
         {/* Compare */}

@@ -21,6 +21,9 @@ import { TourController } from '@/ui/TourController';
 import { CompareHUD } from '@/ui/CompareHUD';
 import { CommandPalette } from '@/ui/CommandPalette';
 import { DiagnosticsOverlay } from '@/ui/DiagnosticsOverlay';
+import { CinematicOverlay } from '@/ui/CinematicOverlay';
+import { CinematicDirector } from '@/engine/camera/CinematicDirector';
+import { HarmonicesMundiSynth } from '@/engine/audio/HarmonicesMundiSynth';
 
 // UI modal code-splitting
 const ScaleExplorer = React.lazy(() => import('@/ui/ScaleExplorer').then((m) => ({ default: m.ScaleExplorer })));
@@ -76,9 +79,14 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
 // Master Render Loop Dispatcher
 const EngineLoop: React.FC = () => {
-  useFrame(() => {
+  const timeScale = useAppStore((state) => state.timeScale);
+  const targetId = useAppStore((state) => state.targetId);
+
+  useFrame((_, delta) => {
     SimulationClock.getInstance().update(performance.now());
     PerformanceManager.getInstance().recordFrame(performance.now());
+    CinematicDirector.getInstance().update(delta);
+    HarmonicesMundiSynth.getInstance().update(timeScale, targetId === 'blackhole');
   });
 
   return null;
@@ -139,11 +147,32 @@ export default function App() {
   const compareMode = useAppStore((state) => state.compareMode);
   const activeTour = useAppStore((state) => state.activeTour);
   const photoMode = useAppStore((state) => state.photoMode);
+  const cinemaMode = useAppStore((state) => state.cinemaMode);
   const quality = useAppStore((state) => state.graphicsQuality);
 
   const pm = PerformanceManager.getInstance();
   const dpr = pm.getDPR(quality);
   const enableBloom = quality !== 'LOW';
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Toggle cinema mode on 'c' or 'C' when not typing in inputs
+      if ((e.key === 'c' || e.key === 'C') && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
+        e.preventDefault();
+        const director = CinematicDirector.getInstance();
+        if (useAppStore.getState().cinemaMode) {
+          director.exitCinemaMode();
+        } else {
+          director.enterCinemaMode('AUTO');
+        }
+      } else if (e.key === 'Escape' && useAppStore.getState().cinemaMode) {
+        CinematicDirector.getInstance().exitCinemaMode();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     const handleContextLost = (event: Event) => {
@@ -206,12 +235,13 @@ export default function App() {
         </Canvas>
 
         {/* User Interface HUD Layer */}
-        {!photoMode && <SuperNav />}
-        {!photoMode && !activeTour && <TimeControls />}
-        {!photoMode && cameraMode !== 'FREE_FLIGHT' && !compareMode && <TargetHUD />}
-        <FlightHUD />
-        <TourController />
-        <CompareHUD />
+        {!photoMode && !cinemaMode && <SuperNav />}
+        {!photoMode && !cinemaMode && !activeTour && <TimeControls />}
+        {!photoMode && !cinemaMode && cameraMode !== 'FREE_FLIGHT' && !compareMode && <TargetHUD />}
+        {!cinemaMode && <FlightHUD />}
+        {!cinemaMode && <TourController />}
+        {!cinemaMode && <CompareHUD />}
+        <CinematicOverlay />
         <CommandPalette />
         <Suspense fallback={null}>
           <ScaleExplorer />

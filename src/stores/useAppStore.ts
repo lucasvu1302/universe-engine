@@ -37,6 +37,11 @@ export interface AppState {
   isDevOverlayOpen: boolean;
   isCommandPaletteOpen: boolean;
   isSettingsOpen: boolean;
+
+  // Cinema & Orbital Harmony (Phase 1)
+  cinemaMode: boolean;
+  cinemaShot: 'ORBITAL_DRIFT' | 'RING_SKI' | 'SLINGSHOT' | 'AUTO';
+  harmonicesMundi: boolean;
   
   // Actions
   setCameraMode: (mode: CameraMode) => void;
@@ -69,6 +74,10 @@ export interface AppState {
   toggleDevOverlay: () => void;
   setCommandPaletteOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
+
+  setCinemaMode: (enabled: boolean) => void;
+  setCinemaShot: (shot: 'ORBITAL_DRIFT' | 'RING_SKI' | 'SLINGSHOT' | 'AUTO') => void;
+  toggleHarmonicesMundi: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -101,6 +110,10 @@ export const useAppStore = create<AppState>((set) => ({
   isCommandPaletteOpen: false,
   isSettingsOpen: false,
 
+  cinemaMode: false,
+  cinemaShot: 'AUTO',
+  harmonicesMundi: false,
+
   setCameraMode: (mode) => set({ cameraMode: mode }),
   setTargetId: (id) => set({ targetId: id }),
   setHoveredId: (id) => set({ hoveredId: id }),
@@ -131,4 +144,8 @@ export const useAppStore = create<AppState>((set) => ({
   toggleDevOverlay: () => set((state) => ({ isDevOverlayOpen: !state.isDevOverlayOpen })),
   setCommandPaletteOpen: (open) => set({ isCommandPaletteOpen: open }),
   setSettingsOpen: (open) => set({ isSettingsOpen: open }),
+
+  setCinemaMode: (enabled) => set({ cinemaMode: enabled }),
+  setCinemaShot: (shot) => set({ cinemaShot: shot }),
+  toggleHarmonicesMundi: () => set((state) => ({ harmonicesMundi: !state.harmonicesMundi })),
 }));
