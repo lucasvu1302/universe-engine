@@ -95,7 +95,7 @@ export const SolarSystemScene: React.FC<SolarSystemSceneProps> = ({
 
       {/* Relativistic High-Energy Pulsar / Neutron Star */}
       <Pulsar
-        position={[-340, 160, -380]}
+        position={[-650, 220, -750]}
         onSelect={() => onFocusPlanet('pulsar')}
       />
 

@@ -99,6 +99,8 @@ export const SuperNav: React.FC = () => {
     setIsPlanetsOpen(false);
     if (id === 'blackhole') {
       cam.flyToBlackHole();
+    } else if (id === 'pulsar') {
+      cam.flyToPulsar();
     } else {
       cam.focusPlanet(id);
     }
@@ -257,6 +259,19 @@ export const SuperNav: React.FC = () => {
                   <span className="font-semibold">Gargantua (Black Hole)</span>
                 </span>
                 <span className="text-[10px] text-orange-400/70 font-mono">Singularity</span>
+              </button>
+
+              <button
+                onClick={() => handlePlanetSelect('pulsar')}
+                className={`w-full text-left px-3.5 py-1.5 hover:bg-white/10 flex items-center justify-between text-xs cursor-pointer ${
+                  selectedTarget === 'pulsar' ? 'text-cyan-400 font-bold bg-white/5' : 'text-cyan-300'
+                }`}
+              >
+                <span className="flex items-center space-x-1.5">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                  <span className="font-semibold">PSR B1257+12 (Pulsar)</span>
+                </span>
+                <span className="text-[10px] text-cyan-400/70 font-mono">Neutron Star</span>
               </button>
             </div>
           )}

@@ -2,7 +2,7 @@ export interface CelestialBodyData {
   id: string;
   name: string;
   displayName: string;
-  type: 'star' | 'rocky' | 'atmospheric' | 'gas_giant' | 'ice_giant' | 'moon' | 'black_hole';
+  type: 'star' | 'rocky' | 'atmospheric' | 'gas_giant' | 'ice_giant' | 'moon' | 'black_hole' | 'pulsar';
   diameterKm: number;
   massKg: string;
   gravityMs2: number;
@@ -510,6 +510,28 @@ export const CELESTIAL_BODIES: Record<string, CelestialBodyData> = {
     color: '#000000',
     emissiveColor: '#ff7700',
     description: 'A supermassive rotating Kerr black hole. Warps space-time via extreme general relativity, creating an Einstein ring, relativistic Doppler-beamed accretion disk, and photon sphere.'
+  },
+  pulsar: {
+    id: 'pulsar',
+    name: 'PSR B1257+12',
+    displayName: 'PSR B1257+12 (Pulsar)',
+    type: 'pulsar',
+    diameterKm: 20,
+    massKg: '2.8 × 10³⁰ kg (~1.4 Sol)',
+    gravityMs2: 2.0e12,
+    dayLengthHours: 0.0000017,
+    orbitalPeriodDays: 0,
+    meanTemperatureC: 1000000,
+    moonsCount: 3,
+    axialTiltDeg: 18.0,
+    orbitalDistanceAU: 2300.0,
+    visualRadius: 2.2,
+    visualDistance: 1000,
+    orbitalSpeed: 0,
+    rotationSpeed: 2.5,
+    color: '#38bdf8',
+    emissiveColor: '#ffffff',
+    description: 'A millisecond pulsar with colossal magnetic field lines that accelerate charged particles into continuous relativistic lighthouse beams sweeping through deep space.'
   }
 };
 
@@ -551,12 +573,14 @@ export const TOUR_SEQUENCE = [
   'uranus',
   'neptune',
   'triton',
-  'blackhole'
+  'blackhole',
+  'pulsar'
 ] as const;
 
 export const ALL_CELESTIAL_KEYS = [
   'sun',
   ...PLANET_KEYS,
   ...MOON_KEYS,
-  'blackhole'
+  'blackhole',
+  'pulsar'
 ] as const;

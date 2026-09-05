@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Compass, Globe2, Rocket, Play, Camera, Volume2, Sliders, X, Orbit, Film, Disc } from 'lucide-react';
+import { Search, Compass, Globe2, Rocket, Play, Camera, Volume2, Sliders, X, Orbit, Film, Disc, Sparkles } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { CELESTIAL_BODIES, ALL_CELESTIAL_KEYS } from '@/data/celestialData';
 import { CameraManager } from '@/engine/camera/CameraManager';
@@ -65,6 +65,17 @@ export const CommandPalette: React.FC = () => {
         icon: <Rocket className="w-4 h-4 text-emerald-400" />,
         action: () => {
           setCameraMode('FREE_FLIGHT');
+        }
+      },
+      {
+        id: 'pulsar',
+        title: 'Warp to Relativistic Pulsar (Neutron Star)',
+        category: 'Singularity',
+        icon: <Sparkles className="w-4 h-4 text-cyan-400" />,
+        action: () => {
+          setTargetId('pulsar');
+          setCameraMode('ORBIT');
+          CameraManager.getInstance().flyToPulsar();
         }
       },
       {

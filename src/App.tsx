@@ -120,6 +120,8 @@ const UniverseScene: React.FC = () => {
     setTargetId(id);
     if (id === 'blackhole') {
       CameraManager.getInstance().flyToBlackHole();
+    } else if (id === 'pulsar') {
+      CameraManager.getInstance().flyToPulsar();
     } else {
       CameraManager.getInstance().focusPlanet(id);
     }

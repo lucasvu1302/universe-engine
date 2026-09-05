@@ -73,6 +73,10 @@ export class CameraManager {
       return target.set(0, 180, -1200);
     }
 
+    if (id === 'pulsar') {
+      return target.set(-650, 220, -750);
+    }
+
     // Hierarchical Moon Position relative to parent planet
     if (data.type === 'moon' && data.parentPlanetId) {
       const parentPos = this.getLiveBodyPosition(data.parentPlanetId, this.parentScratch);
@@ -110,6 +114,7 @@ export class CameraManager {
   public getAdaptiveMinDistance(): number {
     if (this.state === 'GALAXY') return 80;
     if (this.activeFocusId === 'blackhole') return 35;
+    if (this.activeFocusId === 'pulsar') return 15;
     if (!this.activeFocusId || this.activeFocusId === 'sun') return 25;
     const body = CELESTIAL_BODIES[this.activeFocusId];
     if (!body) return 10;
@@ -119,6 +124,7 @@ export class CameraManager {
   public getAdaptiveMaxDistance(): number {
     if (this.state === 'GALAXY') return 1200;
     if (this.activeFocusId === 'blackhole') return 600;
+    if (this.activeFocusId === 'pulsar') return 350;
     if (!this.activeFocusId || this.activeFocusId === 'sun') return 3000;
     const body = CELESTIAL_BODIES[this.activeFocusId];
     if (!body) return 1500;
@@ -319,6 +325,24 @@ export class CameraManager {
       this.targetDistance = 120;
       this.targetSpherical.radius = 120;
       this.spherical.radius = 120;
+      this.state = 'ORBIT';
+      useAppStore.getState().setCameraMode('ORBIT');
+      onComplete?.();
+    });
+  }
+
+  /**
+   * Fly to Relativistic Pulsar (Neutron Star) in deep space.
+   */
+  public flyToPulsar(onComplete?: () => void): void {
+    this.activeFocusId = 'pulsar';
+    const targetPos = new THREE.Vector3(-650, 220, -750);
+    const destPos = new THREE.Vector3(-650, 235, -670);
+
+    this.flyTo(destPos, targetPos, 2.5, () => {
+      this.targetDistance = 80;
+      this.targetSpherical.radius = 80;
+      this.spherical.radius = 80;
       this.state = 'ORBIT';
       useAppStore.getState().setCameraMode('ORBIT');
       onComplete?.();
