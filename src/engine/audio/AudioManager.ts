@@ -160,6 +160,15 @@ export class AudioManager {
     this.warpFilter.frequency.setTargetAtTime(targetCutoff, now, 0.08);
   }
 
+  public playWarpDrive(): void {
+    if (!this.ctx || !this.warpGain) return;
+    this.ensureContextRunning();
+    const now = this.ctx.currentTime;
+    this.warpGain.gain.cancelScheduledValues(now);
+    this.warpGain.gain.setValueAtTime(0.4, now);
+    this.warpGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.8);
+  }
+
   public updateSoundState(enabled: boolean): void {
     if (enabled) {
       if (!this.isInitialized) {

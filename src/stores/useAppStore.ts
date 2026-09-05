@@ -42,6 +42,22 @@ export interface AppState {
   cinemaMode: boolean;
   cinemaShot: 'ORBITAL_DRIFT' | 'RING_SKI' | 'SLINGSHOT' | 'AUTO';
   harmonicesMundi: boolean;
+
+  // Surface & Re-entry (Phase 2)
+  activeSurface: 'none' | 'mars' | 'moon';
+  reEntryActive: boolean;
+
+  // Exosystem & Wormhole (Phase 3)
+  inExoSystem: boolean;
+
+  // Sandbox & Cataclysms (Phase 4)
+  isSandboxOpen: boolean;
+  activeMeteor: boolean;
+  activeTidal: boolean;
+  activeSupernova: boolean;
+
+  // AI TARS Copilot (Phase 4)
+  isTarsOpen: boolean;
   
   // Actions
   setCameraMode: (mode: CameraMode) => void;
@@ -78,6 +94,15 @@ export interface AppState {
   setCinemaMode: (enabled: boolean) => void;
   setCinemaShot: (shot: 'ORBITAL_DRIFT' | 'RING_SKI' | 'SLINGSHOT' | 'AUTO') => void;
   toggleHarmonicesMundi: () => void;
+
+  setActiveSurface: (surf: 'none' | 'mars' | 'moon') => void;
+  setReEntryActive: (active: boolean) => void;
+  setInExoSystem: (inExo: boolean) => void;
+  setSandboxOpen: (open: boolean) => void;
+  setActiveMeteor: (active: boolean) => void;
+  setActiveTidal: (active: boolean) => void;
+  setActiveSupernova: (active: boolean) => void;
+  setTarsOpen: (open: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -114,6 +139,15 @@ export const useAppStore = create<AppState>((set) => ({
   cinemaShot: 'AUTO',
   harmonicesMundi: false,
 
+  activeSurface: 'none',
+  reEntryActive: false,
+  inExoSystem: false,
+  isSandboxOpen: false,
+  activeMeteor: false,
+  activeTidal: false,
+  activeSupernova: false,
+  isTarsOpen: false,
+
   setCameraMode: (mode) => set({ cameraMode: mode }),
   setTargetId: (id) => set({ targetId: id }),
   setHoveredId: (id) => set({ hoveredId: id }),
@@ -148,4 +182,13 @@ export const useAppStore = create<AppState>((set) => ({
   setCinemaMode: (enabled) => set({ cinemaMode: enabled }),
   setCinemaShot: (shot) => set({ cinemaShot: shot }),
   toggleHarmonicesMundi: () => set((state) => ({ harmonicesMundi: !state.harmonicesMundi })),
+
+  setActiveSurface: (surf) => set({ activeSurface: surf }),
+  setReEntryActive: (active) => set({ reEntryActive: active }),
+  setInExoSystem: (inExo) => set({ inExoSystem: inExo }),
+  setSandboxOpen: (open) => set({ isSandboxOpen: open }),
+  setActiveMeteor: (active) => set({ activeMeteor: active }),
+  setActiveTidal: (active) => set({ activeTidal: active }),
+  setActiveSupernova: (active) => set({ activeSupernova: active }),
+  setTarsOpen: (open) => set({ isTarsOpen: open }),
 }));

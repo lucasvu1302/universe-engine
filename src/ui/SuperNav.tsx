@@ -14,7 +14,11 @@ import {
   EyeOff,
   Search,
   Orbit,
-  Film
+  Film,
+  Bot,
+  Bomb,
+  Waves,
+  Navigation
 } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { CELESTIAL_BODIES, PLANET_KEYS } from '@/data/celestialData';
@@ -41,9 +45,27 @@ export const SuperNav: React.FC = () => {
   const setScaleExplorer = useAppStore((state) => state.setScaleExplorer);
   const setSettingsOpen = useAppStore((state) => state.setSettingsOpen);
   const setCommandPaletteOpen = useAppStore((state) => state.setCommandPaletteOpen);
+  const setActiveSurface = useAppStore((state) => state.setActiveSurface);
+  const setReEntryActive = useAppStore((state) => state.setReEntryActive);
+  const inExoSystem = useAppStore((state) => state.inExoSystem);
+  const setInExoSystem = useAppStore((state) => state.setInExoSystem);
+  const isSandboxOpen = useAppStore((state) => state.isSandboxOpen);
+  const setSandboxOpen = useAppStore((state) => state.setSandboxOpen);
+  const isTarsOpen = useAppStore((state) => state.isTarsOpen);
+  const setTarsOpen = useAppStore((state) => state.setTarsOpen);
 
   const audio = AudioManager.getInstance();
   const cam = CameraManager.getInstance();
+
+  const handleLandClick = () => {
+    audio.playWarpDrive();
+    setReEntryActive(true);
+    const target = selectedTarget === 'moon' ? 'moon' : 'mars';
+    setTimeout(() => {
+      setActiveSurface(target);
+      setReEntryActive(false);
+    }, 1600);
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -307,6 +329,59 @@ export const SuperNav: React.FC = () => {
         >
           <Film className="w-3.5 h-3.5 text-rose-400" />
           <span className="font-medium">Cinema</span>
+        </button>
+
+        {/* Surface Landing */}
+        <button
+          onClick={handleLandClick}
+          className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/30 transition-all cursor-pointer shrink-0"
+          title="Land on Mars or Moon with Supersonic Plasma Re-entry"
+        >
+          <Navigation className="w-3.5 h-3.5 text-orange-400" />
+          <span className="font-medium">Land</span>
+        </button>
+
+        {/* 4D Wormhole to Miller's Ocean World */}
+        <button
+          onClick={() => {
+            audio.playWarpDrive();
+            setInExoSystem(!inExoSystem);
+          }}
+          className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 transition-all cursor-pointer shrink-0"
+          title="Wormhole to Miller's Ocean World"
+        >
+          <Waves className="w-3.5 h-3.5 text-cyan-400" />
+          <span className="font-medium">Wormhole</span>
+        </button>
+
+        {/* Sandbox Cataclysms */}
+        <button
+          onClick={() => {
+            audio.playUIClick();
+            setSandboxOpen(!isSandboxOpen);
+          }}
+          className="flex items-center space-x-1 px-2.5 py-1 rounded-full hover:text-white hover:bg-white/10 text-rose-400 border border-rose-500/30 transition-all cursor-pointer shrink-0"
+          title="Sandbox Cataclysms (Meteors, Tidal Disruption, Supernova)"
+        >
+          <Bomb className="w-3.5 h-3.5 text-rose-400" />
+          <span className="font-medium">Sandbox</span>
+        </button>
+
+        {/* AI TARS Copilot */}
+        <button
+          onClick={() => {
+            audio.playUIClick();
+            setTarsOpen(!isTarsOpen);
+          }}
+          className={`flex items-center space-x-1 px-2.5 py-1 rounded-full border transition-all cursor-pointer shrink-0 ${
+            isTarsOpen
+              ? 'bg-sky-500 text-white font-semibold shadow-md shadow-sky-500/30'
+              : 'hover:text-white hover:bg-white/10 text-sky-300 border-sky-500/30'
+          }`}
+          title="AI TARS Autonomous Copilot (Press 'T')"
+        >
+          <Bot className="w-3.5 h-3.5 text-sky-400" />
+          <span className="font-medium">TARS</span>
         </button>
 
         {/* Compare */}
