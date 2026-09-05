@@ -224,6 +224,13 @@ export const CommandPalette: React.FC = () => {
             placeholder="Search celestial bodies, moons, black hole, commands... (Esc to close)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && filtered.length > 0) {
+                AudioManager.getInstance().playUIClick();
+                filtered[0].action();
+                setIsOpen(false);
+              }
+            }}
             autoFocus
             className="flex-1 bg-transparent text-sm text-white placeholder-slate-400 focus:outline-none"
           />
