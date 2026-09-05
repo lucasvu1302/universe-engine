@@ -25,6 +25,7 @@ import { CELESTIAL_BODIES, PLANET_KEYS } from '@/data/celestialData';
 import { AudioManager } from '@/engine/audio/AudioManager';
 import { CameraManager } from '@/engine/camera/CameraManager';
 import { CinematicDirector } from '@/engine/camera/CinematicDirector';
+import { useTranslation } from '@/i18n';
 
 export const SuperNav: React.FC = () => {
   const [isPlanetsOpen, setIsPlanetsOpen] = useState(false);
@@ -53,6 +54,8 @@ export const SuperNav: React.FC = () => {
   const setSandboxOpen = useAppStore((state) => state.setSandboxOpen);
   const isTarsOpen = useAppStore((state) => state.isTarsOpen);
   const setTarsOpen = useAppStore((state) => state.setTarsOpen);
+
+  const { t, language, toggleLanguage } = useTranslation();
 
   const audio = AudioManager.getInstance();
   const cam = CameraManager.getInstance();
@@ -178,10 +181,10 @@ export const SuperNav: React.FC = () => {
               ? 'bg-sky-500 text-white font-semibold shadow-md shadow-sky-500/25'
               : 'hover:text-white hover:bg-white/10'
           }`}
-          title="Explore Solar System"
+          title={t('nav.explore')}
         >
           <Compass className="w-3.5 h-3.5 text-sky-400" />
-          <span className="font-medium">Explore</span>
+          <span className="font-medium">{t('nav.explore')}</span>
         </button>
 
         {/* Celestial Bodies & Moons Dropdown */}
@@ -196,10 +199,10 @@ export const SuperNav: React.FC = () => {
                 ? 'bg-white/20 text-white font-semibold'
                 : 'hover:text-white hover:bg-white/10'
             }`}
-            title="Select Planet or Moon"
+            title={t('nav.planets')}
           >
             <Globe2 className="w-3.5 h-3.5 text-sky-400" />
-            <span className="font-medium">Planets</span>
+            <span className="font-medium">{t('nav.planets')}</span>
           </button>
 
           {isPlanetsOpen && (
@@ -208,8 +211,8 @@ export const SuperNav: React.FC = () => {
                 onClick={() => handlePlanetSelect('sun')}
                 className="w-full text-left px-3.5 py-1.5 hover:bg-white/10 flex items-center justify-between text-xs cursor-pointer"
               >
-                <span className="text-amber-300 font-semibold">The Sun (Sol)</span>
-                <span className="text-[10px] text-slate-400 font-mono">Star</span>
+                <span className="text-amber-300 font-semibold">{t('celestial.sun.displayName')}</span>
+                <span className="text-[10px] text-slate-400 font-mono">{t('celestial.sun.type')}</span>
               </button>
               <div className="h-px bg-white/10 my-1.5" />
               {PLANET_KEYS.map((key) => {
@@ -222,14 +225,12 @@ export const SuperNav: React.FC = () => {
                         selectedTarget === key ? 'text-sky-300 font-bold bg-white/5' : 'text-slate-200'
                       }`}
                     >
-                      <span className="font-medium">{p.name}</span>
+                      <span className="font-medium">{t(`celestial.${key}.name`)}</span>
                       <span className="text-[10px] text-slate-400 font-mono">{p.orbitalDistanceAU} AU</span>
                     </button>
                     {/* Render Moons indented */}
                     {p.moons &&
                       p.moons.map((mKey) => {
-                        const moon = CELESTIAL_BODIES[mKey];
-                        if (!moon) return null;
                         return (
                           <button
                             key={mKey}
@@ -238,8 +239,8 @@ export const SuperNav: React.FC = () => {
                               selectedTarget === mKey ? 'text-sky-300 font-bold bg-white/5' : 'text-slate-400'
                             }`}
                           >
-                            <span>↳ {moon.name}</span>
-                            <span className="text-[9px] text-slate-500">Moon</span>
+                            <span>↳ {t(`celestial.${mKey}.name`)}</span>
+                            <span className="text-[9px] text-slate-500">{t(`celestial.${mKey}.type`)}</span>
                           </button>
                         );
                       })}
@@ -256,9 +257,9 @@ export const SuperNav: React.FC = () => {
               >
                 <span className="flex items-center space-x-1.5">
                   <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
-                  <span className="font-semibold">Gargantua (Black Hole)</span>
+                  <span className="font-semibold">{t('celestial.blackhole.name')}</span>
                 </span>
-                <span className="text-[10px] text-orange-400/70 font-mono">Singularity</span>
+                <span className="text-[10px] text-orange-400/70 font-mono">{t('celestial.blackhole.type')}</span>
               </button>
 
               <button
@@ -269,9 +270,9 @@ export const SuperNav: React.FC = () => {
               >
                 <span className="flex items-center space-x-1.5">
                   <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-                  <span className="font-semibold">PSR B1257+12 (Pulsar)</span>
+                  <span className="font-semibold">{t('celestial.pulsar.name')}</span>
                 </span>
-                <span className="text-[10px] text-cyan-400/70 font-mono">Neutron Star</span>
+                <span className="text-[10px] text-cyan-400/70 font-mono">{t('celestial.pulsar.type')}</span>
               </button>
             </div>
           )}
@@ -285,10 +286,10 @@ export const SuperNav: React.FC = () => {
               ? 'bg-orange-600 text-white font-semibold shadow-md shadow-orange-600/30'
               : 'hover:text-white hover:bg-white/10 text-orange-300'
           }`}
-          title="Warp to Supermassive Black Hole (Gargantua)"
+          title={t('nav.blackHole')}
         >
           <Orbit className="w-3.5 h-3.5 text-orange-400 animate-spin" style={{ animationDuration: '8s' }} />
-          <span className="font-medium">Black Hole</span>
+          <span className="font-medium">{t('nav.blackHole')}</span>
         </button>
 
         {/* Galaxy Overview */}
@@ -299,10 +300,10 @@ export const SuperNav: React.FC = () => {
               ? 'bg-purple-600 text-white font-semibold shadow-md shadow-purple-600/30'
               : 'hover:text-white hover:bg-white/10'
           }`}
-          title="Galaxy Overview"
+          title={t('nav.galaxy')}
         >
           <Disc className="w-3.5 h-3.5 text-purple-300" />
-          <span className="font-medium">Galaxy</span>
+          <span className="font-medium">{t('nav.galaxy')}</span>
         </button>
 
         {/* Free Flight Mode */}
@@ -313,10 +314,10 @@ export const SuperNav: React.FC = () => {
               ? 'bg-emerald-600 text-white font-semibold shadow-md shadow-emerald-600/30'
               : 'hover:text-white hover:bg-white/10'
           }`}
-          title="Spacecraft Flight"
+          title={t('nav.flight')}
         >
           <Rocket className="w-3.5 h-3.5 text-emerald-300" />
-          <span className="font-medium">Flight</span>
+          <span className="font-medium">{t('nav.flight')}</span>
         </button>
 
         {/* Tour */}
@@ -327,10 +328,10 @@ export const SuperNav: React.FC = () => {
             startTour();
           }}
           className="flex items-center space-x-1 px-2.5 py-1 rounded-full hover:text-white hover:bg-white/10 transition-all text-amber-300 cursor-pointer shrink-0"
-          title="Start Tour"
+          title={t('nav.tour')}
         >
           <Play className="w-3.5 h-3.5 fill-amber-300" />
-          <span className="font-medium">Tour</span>
+          <span className="font-medium">{t('nav.tour')}</span>
         </button>
 
         {/* Cinema Director Mode */}
@@ -340,20 +341,20 @@ export const SuperNav: React.FC = () => {
             CinematicDirector.getInstance().enterCinemaMode('AUTO');
           }}
           className="flex items-center space-x-1 px-2.5 py-1 rounded-full hover:text-white hover:bg-white/10 transition-all text-rose-400 cursor-pointer shrink-0"
-          title="Cinematic Director Mode (Press 'C')"
+          title={t('nav.cinema')}
         >
           <Film className="w-3.5 h-3.5 text-rose-400" />
-          <span className="font-medium">Cinema</span>
+          <span className="font-medium">{t('nav.cinema')}</span>
         </button>
 
         {/* Surface Landing */}
         <button
           onClick={handleLandClick}
           className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/30 transition-all cursor-pointer shrink-0"
-          title="Land on Mars or Moon with Supersonic Plasma Re-entry"
+          title={t('nav.land')}
         >
           <Navigation className="w-3.5 h-3.5 text-orange-400" />
-          <span className="font-medium">Land</span>
+          <span className="font-medium">{t('nav.land')}</span>
         </button>
 
         {/* 4D Wormhole to Miller's Ocean World */}
@@ -363,10 +364,10 @@ export const SuperNav: React.FC = () => {
             setInExoSystem(!inExoSystem);
           }}
           className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 transition-all cursor-pointer shrink-0"
-          title="Wormhole to Miller's Ocean World"
+          title={t('nav.wormhole')}
         >
           <Waves className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="font-medium">Wormhole</span>
+          <span className="font-medium">{t('nav.wormhole')}</span>
         </button>
 
         {/* Sandbox Cataclysms */}
@@ -376,10 +377,10 @@ export const SuperNav: React.FC = () => {
             setSandboxOpen(!isSandboxOpen);
           }}
           className="flex items-center space-x-1 px-2.5 py-1 rounded-full hover:text-white hover:bg-white/10 text-rose-400 border border-rose-500/30 transition-all cursor-pointer shrink-0"
-          title="Sandbox Cataclysms (Meteors, Tidal Disruption, Supernova)"
+          title={t('nav.sandbox')}
         >
           <Bomb className="w-3.5 h-3.5 text-rose-400" />
-          <span className="font-medium">Sandbox</span>
+          <span className="font-medium">{t('nav.sandbox')}</span>
         </button>
 
         {/* AI TARS Copilot */}
@@ -393,10 +394,10 @@ export const SuperNav: React.FC = () => {
               ? 'bg-sky-500 text-white font-semibold shadow-md shadow-sky-500/30'
               : 'hover:text-white hover:bg-white/10 text-sky-300 border-sky-500/30'
           }`}
-          title="AI TARS Autonomous Copilot (Press 'T')"
+          title={t('nav.tars')}
         >
           <Bot className="w-3.5 h-3.5 text-sky-400" />
-          <span className="font-medium">TARS</span>
+          <span className="font-medium">{t('nav.tars')}</span>
         </button>
 
         {/* Compare */}
@@ -407,7 +408,7 @@ export const SuperNav: React.FC = () => {
               ? 'bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-600/30'
               : 'hover:text-white hover:bg-white/10'
           }`}
-          title="Compare Planets"
+          title="Compare"
         >
           <Scale className="w-3.5 h-3.5 text-indigo-300" />
           <span className="font-medium">Compare</span>
@@ -420,10 +421,10 @@ export const SuperNav: React.FC = () => {
             setScaleExplorer(true);
           }}
           className="flex items-center space-x-1 px-2.5 py-1 rounded-full hover:text-white hover:bg-white/10 transition-all text-sky-400 cursor-pointer shrink-0"
-          title="Scale Explorer"
+          title={t('nav.scale')}
         >
           <span className="font-mono text-xs font-bold">10ⁿ</span>
-          <span className="font-medium">Scale</span>
+          <span className="font-medium">{t('nav.scale')}</span>
         </button>
 
         {/* Photo Mode */}
@@ -433,7 +434,7 @@ export const SuperNav: React.FC = () => {
             setPhotoMode(true);
           }}
           className="p-1 rounded-full hover:text-white hover:bg-white/10 transition-all cursor-pointer shrink-0 text-slate-300"
-          title="Photo Mode"
+          title={t('nav.photoMode')}
         >
           <Camera className="w-3.5 h-3.5 text-rose-400" />
         </button>
@@ -441,13 +442,27 @@ export const SuperNav: React.FC = () => {
 
       {/* Right Controls */}
       <div className="pointer-events-auto flex items-center space-x-1 shrink-0">
+        {/* Language Switcher Pill */}
+        <button
+          onClick={() => {
+            audio.playUIClick();
+            toggleLanguage();
+          }}
+          className="flex items-center space-x-1 px-2 py-1 rounded-full glass-panel hover:text-white transition-all text-xs font-mono cursor-pointer shrink-0"
+          title={language === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt'}
+        >
+          <span className={language === 'vi' ? 'text-amber-400 font-bold' : 'text-slate-400'}>VI</span>
+          <span className="text-slate-600">/</span>
+          <span className={language === 'en' ? 'text-sky-400 font-bold' : 'text-slate-400'}>EN</span>
+        </button>
+
         <button
           onClick={() => {
             audio.playUIClick();
             setCommandPaletteOpen(true);
           }}
           className="p-1.5 rounded-full glass-panel hover:text-white transition-all text-slate-300 cursor-pointer"
-          title="Command Palette (Cmd+K)"
+          title={t('nav.searchTooltip')}
         >
           <Search className="w-3.5 h-3.5 text-sky-400" />
         </button>
@@ -458,7 +473,7 @@ export const SuperNav: React.FC = () => {
             toggleOrbits();
           }}
           className="p-1.5 rounded-full glass-panel hover:text-white transition-all text-slate-300 cursor-pointer hidden md:flex"
-          title={showOrbits ? 'Hide Orbit Paths' : 'Show Orbit Paths'}
+          title={showOrbits ? t('nav.hideOrbits') : t('nav.showOrbits')}
         >
           {showOrbits ? <Eye className="w-3.5 h-3.5 text-sky-400" /> : <EyeOff className="w-3.5 h-3.5" />}
         </button>
@@ -466,7 +481,7 @@ export const SuperNav: React.FC = () => {
         <button
           onClick={handleSoundClick}
           className="p-1.5 rounded-full glass-panel hover:text-white transition-all text-slate-300 cursor-pointer hidden md:flex"
-          title={soundEnabled ? 'Mute Spatial Audio' : 'Enable Spatial Audio'}
+          title={soundEnabled ? t('nav.muteAudio') : t('nav.enableAudio')}
         >
           {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-emerald-400" /> : <VolumeX className="w-3.5 h-3.5" />}
         </button>
@@ -477,7 +492,7 @@ export const SuperNav: React.FC = () => {
             setSettingsOpen(true);
           }}
           className="p-1.5 rounded-full glass-panel hover:text-white transition-all text-slate-300 cursor-pointer"
-          title="Engine Settings"
+          title={t('nav.settings')}
         >
           <Sliders className="w-3.5 h-3.5" />
         </button>

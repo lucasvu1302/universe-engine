@@ -3,8 +3,10 @@ import { Play, Pause, RotateCcw, FastForward } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { SimulationClock } from '@/engine/simulation/SimulationClock';
 import { AudioManager } from '@/engine/audio/AudioManager';
+import { useTranslation } from '@/i18n';
 
 export const TimeControls: React.FC = () => {
+  const { t } = useTranslation();
   const isPaused = useAppStore((state) => state.isPaused);
   const togglePause = useAppStore((state) => state.togglePause);
   const timeScale = useAppStore((state) => state.timeScale);
@@ -43,7 +45,7 @@ export const TimeControls: React.FC = () => {
         <button
           onClick={handleTogglePause}
           className="p-2 rounded-full bg-sky-500 hover:bg-sky-400 text-white transition-all shadow-md shadow-sky-500/30"
-          title={isPaused ? 'Resume Simulation' : 'Pause Simulation'}
+          title={isPaused ? 'Resume' : t('time.paused')}
         >
           {isPaused ? <Play className="w-3.5 h-3.5 fill-white" /> : <Pause className="w-3.5 h-3.5 fill-white" />}
         </button>
@@ -67,9 +69,9 @@ export const TimeControls: React.FC = () => {
 
         {/* Simulation Days Elapsed */}
         <div className="border-l border-white/10 pl-2.5 pr-1 flex items-center space-x-1.5 text-slate-300">
-          <FastForward className="w-3 h-3 text-sky-400" />
+          <FastForward className="w-3.5 h-3.5 text-sky-400" />
           <span className="font-mono text-[11px]">
-            {Math.abs(simDays)} <span className="text-[9px] text-slate-500">DAYS</span>
+            {Math.abs(simDays)} <span className="text-[9px] text-slate-500">{t('time.simDays')}</span>
           </span>
         </div>
 
@@ -81,7 +83,7 @@ export const TimeControls: React.FC = () => {
             setSimDays(0);
           }}
           className="p-1 rounded text-slate-400 hover:text-white transition-all"
-          title="Reset Simulation Clock"
+          title={t('time.resetTooltip')}
         >
           <RotateCcw className="w-3 h-3" />
         </button>

@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Compass, Gauge } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { CameraManager } from '@/engine/camera/CameraManager';
-import { CELESTIAL_BODIES } from '@/data/celestialData';
+import { getLocalizedBodyData } from '@/data/celestialData';
+import { useTranslation } from '@/i18n';
 
 export const FlightHUD: React.FC = () => {
+  const { t } = useTranslation();
   const cameraMode = useAppStore((state) => state.cameraMode);
   const targetId = useAppStore((state) => state.targetId);
   const setCameraMode = useAppStore((state) => state.setCameraMode);
@@ -34,7 +36,7 @@ export const FlightHUD: React.FC = () => {
 
   if (cameraMode !== 'FREE_FLIGHT') return null;
 
-  const targetBody = targetId ? CELESTIAL_BODIES[targetId] : null;
+  const targetBody = targetId ? getLocalizedBodyData(targetId) : null;
 
   return (
     <div className="fixed inset-0 pointer-events-none z-30 flex flex-col justify-between p-6">
@@ -43,10 +45,10 @@ export const FlightHUD: React.FC = () => {
         <div className="glass-panel px-4 py-1.5 rounded-full flex items-center space-x-2 text-emerald-400 border border-emerald-500/30">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
           <span className="text-xs font-mono font-semibold tracking-widest uppercase">
-            6-DOF SPACECRAFT MANUAL FLIGHT ENGAGED
+            {t('flight.title')}
           </span>
           <span className="text-[10px] text-slate-400 bg-white/10 px-2 py-0.5 rounded">
-            PRESS ESC TO EXIT
+            {t('cinema.pressEsc')}
           </span>
         </div>
       </div>
@@ -68,10 +70,10 @@ export const FlightHUD: React.FC = () => {
       {/* Flight Instrument Gauges (Left & Right) */}
       <div className="flex justify-between items-end mb-16">
         {/* Left: Speedometer & Thrust */}
-        <div className="glass-panel p-3.5 rounded-2xl space-y-2 border border-sky-500/20 w-52">
+        <div className="glass-panel p-3.5 rounded-2xl space-y-2 border border-sky-500/20 w-56">
           <div className="flex items-center space-x-2 text-slate-400">
             <Gauge className="w-4 h-4 text-sky-400" />
-            <span className="text-[10px] font-mono uppercase tracking-wider">Velocity Vector</span>
+            <span className="text-[10px] font-mono uppercase tracking-wider">{t('flight.velocity')}</span>
           </div>
           <div className="flex items-baseline space-x-1.5">
             <span className="text-2xl font-mono font-bold text-white">{velocity}</span>
@@ -88,12 +90,12 @@ export const FlightHUD: React.FC = () => {
 
         {/* Right: Target Range */}
         {targetBody && (
-          <div className="glass-panel p-3.5 rounded-2xl space-y-2 border border-sky-500/20 w-52 text-right">
+          <div className="glass-panel p-3.5 rounded-2xl space-y-2 border border-sky-500/20 w-56 text-right">
             <div className="flex items-center justify-end space-x-2 text-slate-400">
-              <span className="text-[10px] font-mono uppercase tracking-wider">Waypoint Lock</span>
+              <span className="text-[10px] font-mono uppercase tracking-wider">{t('commandPalette.catNavigation')}</span>
               <Compass className="w-4 h-4 text-amber-400" />
             </div>
-            <div className="text-sm font-bold text-white uppercase">{targetBody.name}</div>
+            <div className="text-sm font-bold text-white uppercase">{targetBody.displayName}</div>
             <div className="text-xs font-mono text-amber-400">
               {(targetBody.orbitalDistanceAU * 149.6).toFixed(1)}M KM
             </div>
@@ -104,11 +106,10 @@ export const FlightHUD: React.FC = () => {
       {/* Bottom Keybinding Helpers */}
       <div className="flex justify-center">
         <div className="glass-panel px-4 py-2 rounded-xl flex items-center space-x-4 text-[11px] font-mono text-slate-300">
-          <div><kbd className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">W/S</kbd> Pitch/Thrust</div>
-          <div><kbd className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">A/D</kbd> Strafe</div>
-          <div><kbd className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">Q/E</kbd> Ascend/Descend</div>
-          <div><kbd className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">Shift</kbd> Boost</div>
-          <div><kbd className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">Space</kbd> Brake</div>
+          <div><kbd className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">W/S/A/D</kbd> {t('flight.wasdMove')}</div>
+          <div><kbd className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">R/F</kbd> {t('flight.rfVertical')}</div>
+          <div><kbd className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">Shift</kbd> {t('flight.shiftBoost')}</div>
+          <div><kbd className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">Space</kbd> {t('flight.spaceBrake')}</div>
         </div>
       </div>
     </div>

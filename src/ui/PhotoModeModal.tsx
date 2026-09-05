@@ -3,8 +3,10 @@ import { Camera, X, Download, Sliders } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { CameraManager } from '@/engine/camera/CameraManager';
 import { AudioManager } from '@/engine/audio/AudioManager';
+import { useTranslation } from '@/i18n';
 
 export const PhotoModeModal: React.FC = () => {
+  const { t, language } = useTranslation();
   const isPhotoMode = useAppStore((state) => state.photoMode);
   const setPhotoMode = useAppStore((state) => state.setPhotoMode);
 
@@ -44,7 +46,9 @@ export const PhotoModeModal: React.FC = () => {
       <div className="flex justify-between items-center pointer-events-auto">
         <div className="glass-panel px-4 py-1.5 rounded-full flex items-center space-x-2 text-rose-400 border border-rose-500/30">
           <Camera className="w-4 h-4" />
-          <span className="text-xs font-mono font-bold tracking-wider uppercase">PHOTO LAB</span>
+          <span className="text-xs font-mono font-bold tracking-wider uppercase">
+            {t('photo.title')}
+          </span>
         </div>
 
         <button
@@ -84,7 +88,7 @@ export const PhotoModeModal: React.FC = () => {
           <div className="flex items-center space-x-3 border-l border-white/10 pl-4">
             <div className="space-y-1">
               <div className="flex justify-between text-[10px] font-mono text-slate-400">
-                <span>EXPOSURE</span>
+                <span>{language === 'vi' ? 'PHƠI SÁNG' : 'EXPOSURE'}</span>
                 <span>{exposure.toFixed(1)}x</span>
               </div>
               <input
@@ -105,7 +109,7 @@ export const PhotoModeModal: React.FC = () => {
             className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-400 hover:to-amber-400 text-white font-bold text-xs shadow-lg shadow-rose-500/25 transition-all"
           >
             <Download className="w-4 h-4" />
-            <span>SAVE SNAPSHOT</span>
+            <span>{t('photo.takePhoto')}</span>
           </button>
         </div>
       </div>

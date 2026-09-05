@@ -1,10 +1,12 @@
 import React from 'react';
 import { X, Scale, Ruler, Weight, Thermometer, Clock } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
-import { CELESTIAL_BODIES, PLANET_KEYS } from '@/data/celestialData';
+import { PLANET_KEYS, getLocalizedBodyData } from '@/data/celestialData';
 import { AudioManager } from '@/engine/audio/AudioManager';
+import { useTranslation } from '@/i18n';
 
 export const CompareHUD: React.FC = () => {
+  const { t, language } = useTranslation();
   const compareMode = useAppStore((state) => state.compareMode);
   const setCompareMode = useAppStore((state) => state.setCompareMode);
   const planetAId = useAppStore((state) => state.comparePlanetA);
@@ -15,8 +17,8 @@ export const CompareHUD: React.FC = () => {
 
   if (!compareMode) return null;
 
-  const dataA = CELESTIAL_BODIES[planetAId] || CELESTIAL_BODIES.earth;
-  const dataB = CELESTIAL_BODIES[planetBId] || CELESTIAL_BODIES.jupiter;
+  const dataA = getLocalizedBodyData(planetAId) || getLocalizedBodyData('earth')!;
+  const dataB = getLocalizedBodyData(planetBId) || getLocalizedBodyData('jupiter')!;
 
   const allChoices = ['sun', ...PLANET_KEYS, 'moon'];
 
@@ -28,7 +30,7 @@ export const CompareHUD: React.FC = () => {
           <div className="flex items-center space-x-2 text-indigo-400">
             <Scale className="w-5 h-5" />
             <span className="text-xs font-mono font-bold tracking-wider uppercase">
-              CELESTIAL COMPARISON ENGINE
+              {language === 'vi' ? 'CÔNG CỤ SO SÁNH THIÊN THỂ' : 'CELESTIAL COMPARISON ENGINE'}
             </span>
           </div>
 
@@ -45,7 +47,9 @@ export const CompareHUD: React.FC = () => {
                   : 'bg-white/10 text-slate-300 hover:bg-white/20'
               }`}
             >
-              {trueSize ? 'TRUE SCALE: ACTIVE' : 'VISUAL SCALE'}
+              {trueSize
+                ? (language === 'vi' ? 'TỶ LỆ THỰC TẾ: BẬT' : 'TRUE SCALE: ACTIVE')
+                : (language === 'vi' ? 'TỶ LỆ TRỰC QUAN' : 'VISUAL SCALE')}
             </button>
 
             <button
@@ -77,7 +81,7 @@ export const CompareHUD: React.FC = () => {
             >
               {allChoices.map((key) => (
                 <option key={key} value={key}>
-                  {CELESTIAL_BODIES[key]?.displayName}
+                  {getLocalizedBodyData(key)?.displayName || key}
                 </option>
               ))}
             </select>
@@ -86,7 +90,7 @@ export const CompareHUD: React.FC = () => {
           {/* Planet B Selector */}
           <div>
             <label className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block mb-1">
-              Body B
+              {language === 'vi' ? 'Thiên Thể B' : 'Body B'}
             </label>
             <select
               value={planetBId}
@@ -98,7 +102,7 @@ export const CompareHUD: React.FC = () => {
             >
               {allChoices.map((key) => (
                 <option key={key} value={key}>
-                  {CELESTIAL_BODIES[key]?.displayName}
+                  {getLocalizedBodyData(key)?.displayName || key}
                 </option>
               ))}
             </select>
@@ -109,42 +113,42 @@ export const CompareHUD: React.FC = () => {
         <div className="grid grid-cols-2 gap-3 pt-2 text-xs">
           {/* Metrics for A */}
           <div className="bg-white/5 p-3 rounded-2xl space-y-2 border border-white/5 font-mono">
-            <div className="text-sm font-bold text-sky-400 font-sans">{dataA.name}</div>
+            <div className="text-sm font-bold text-sky-400 font-sans">{dataA.displayName}</div>
             <div className="flex items-center justify-between text-[11px]">
-              <span className="flex items-center text-slate-400"><Ruler className="w-3 h-3 mr-1 text-sky-400" /> Diameter:</span>
+              <span className="flex items-center text-slate-400"><Ruler className="w-3 h-3 mr-1 text-sky-400" /> {t('targetHud.diameter')}:</span>
               <span className="text-white">{dataA.diameterKm.toLocaleString()} km</span>
             </div>
             <div className="flex items-center justify-between text-[11px]">
-              <span className="flex items-center text-slate-400"><Weight className="w-3 h-3 mr-1 text-amber-400" /> Gravity:</span>
+              <span className="flex items-center text-slate-400"><Weight className="w-3 h-3 mr-1 text-amber-400" /> {t('targetHud.gravity')}:</span>
               <span className="text-white">{dataA.gravityMs2} m/s²</span>
             </div>
             <div className="flex items-center justify-between text-[11px]">
-              <span className="flex items-center text-slate-400"><Clock className="w-3 h-3 mr-1 text-emerald-400" /> Day:</span>
+              <span className="flex items-center text-slate-400"><Clock className="w-3 h-3 mr-1 text-emerald-400" /> {language === 'vi' ? 'Chu kỳ tự quay' : 'Day'}:</span>
               <span className="text-white">{dataA.dayLengthHours}h</span>
             </div>
             <div className="flex items-center justify-between text-[11px]">
-              <span className="flex items-center text-slate-400"><Thermometer className="w-3 h-3 mr-1 text-rose-400" /> Temp:</span>
+              <span className="flex items-center text-slate-400"><Thermometer className="w-3 h-3 mr-1 text-rose-400" /> {t('targetHud.meanTemp')}:</span>
               <span className="text-white">{dataA.meanTemperatureC}°C</span>
             </div>
           </div>
 
           {/* Metrics for B */}
           <div className="bg-white/5 p-3 rounded-2xl space-y-2 border border-white/5 font-mono">
-            <div className="text-sm font-bold text-amber-400 font-sans">{dataB.name}</div>
+            <div className="text-sm font-bold text-amber-400 font-sans">{dataB.displayName}</div>
             <div className="flex items-center justify-between text-[11px]">
-              <span className="flex items-center text-slate-400"><Ruler className="w-3 h-3 mr-1 text-sky-400" /> Diameter:</span>
+              <span className="flex items-center text-slate-400"><Ruler className="w-3 h-3 mr-1 text-sky-400" /> {t('targetHud.diameter')}:</span>
               <span className="text-white">{dataB.diameterKm.toLocaleString()} km</span>
             </div>
             <div className="flex items-center justify-between text-[11px]">
-              <span className="flex items-center text-slate-400"><Weight className="w-3 h-3 mr-1 text-amber-400" /> Gravity:</span>
+              <span className="flex items-center text-slate-400"><Weight className="w-3 h-3 mr-1 text-amber-400" /> {t('targetHud.gravity')}:</span>
               <span className="text-white">{dataB.gravityMs2} m/s²</span>
             </div>
             <div className="flex items-center justify-between text-[11px]">
-              <span className="flex items-center text-slate-400"><Clock className="w-3 h-3 mr-1 text-emerald-400" /> Day:</span>
+              <span className="flex items-center text-slate-400"><Clock className="w-3 h-3 mr-1 text-emerald-400" /> {language === 'vi' ? 'Chu kỳ tự quay' : 'Day'}:</span>
               <span className="text-white">{dataB.dayLengthHours}h</span>
             </div>
             <div className="flex items-center justify-between text-[11px]">
-              <span className="flex items-center text-slate-400"><Thermometer className="w-3 h-3 mr-1 text-rose-400" /> Temp:</span>
+              <span className="flex items-center text-slate-400"><Thermometer className="w-3 h-3 mr-1 text-rose-400" /> {t('targetHud.meanTemp')}:</span>
               <span className="text-white">{dataB.meanTemperatureC}°C</span>
             </div>
           </div>

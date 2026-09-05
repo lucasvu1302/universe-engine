@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Mic, MicOff, Bot, Sliders, X, Sparkles } from 'lucide-react';
 import { AstroCopilot } from '@/engine/ai/AstroCopilot';
 import { AudioManager } from '@/engine/audio/AudioManager';
+import { useTranslation } from '@/i18n';
 
 interface TarsHologramProps {
   isOpen: boolean;
@@ -9,8 +10,11 @@ interface TarsHologramProps {
 }
 
 export const TarsHologram: React.FC<TarsHologramProps> = ({ isOpen, onClose }) => {
+  const { t, language } = useTranslation();
   const [isListening, setIsListening] = useState(false);
-  const [lastSpeech, setLastSpeech] = useState("Standing by for flight orders, Commander.");
+  const [lastSpeech, setLastSpeech] = useState(
+    language === 'vi' ? 'Trực ban TARS sẵn sàng. Chỉ huy có mệnh lệnh gì?' : 'Standing by for flight orders, Commander.'
+  );
   const [honesty, setHonesty] = useState(95);
   const [humor, setHumor] = useState(75);
 
@@ -22,6 +26,12 @@ export const TarsHologram: React.FC<TarsHologramProps> = ({ isOpen, onClose }) =
     copilot.humor = humor;
   }, [honesty, humor, copilot]);
 
+  useEffect(() => {
+    setLastSpeech(
+      language === 'vi' ? 'Trực ban TARS sẵn sàng. Chỉ huy có mệnh lệnh gì?' : 'Standing by for flight orders, Commander.'
+    );
+  }, [language]);
+
   if (!isOpen) return null;
 
   const handleMicToggle = () => {
@@ -29,7 +39,11 @@ export const TarsHologram: React.FC<TarsHologramProps> = ({ isOpen, onClose }) =
     const active = copilot.toggleListening();
     setIsListening(active);
     if (active) {
-      setLastSpeech("Listening for voice commands... (e.g. 'Go to Mars', 'Cinema Mode', 'Play Music')");
+      setLastSpeech(
+        language === 'vi'
+          ? 'Đang lắng nghe khẩu lệnh... (VD: "Tới Sao Hỏa", "Bật rạp phim", "Hố đen")'
+          : "Listening for voice commands... (e.g. 'Go to Mars', 'Cinema Mode', 'Play Music')"
+      );
     }
   };
 
@@ -43,7 +57,7 @@ export const TarsHologram: React.FC<TarsHologramProps> = ({ isOpen, onClose }) =
           </div>
           <div>
             <div className="text-xs font-bold tracking-widest text-sky-300">TARS 9000</div>
-            <div className="text-[9px] text-slate-400">AUTONOMOUS ASTRO-COPILOT</div>
+            <div className="text-[9px] text-slate-400">{t('tars.subtitle')}</div>
           </div>
         </div>
 
@@ -86,7 +100,7 @@ export const TarsHologram: React.FC<TarsHologramProps> = ({ isOpen, onClose }) =
           }`}
         >
           {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-          <span>{isListening ? 'Stop Listening' : 'Speak to TARS'}</span>
+          <span>{isListening ? t('tars.listening') : t('tars.clickToSpeak')}</span>
         </button>
       </div>
 
@@ -95,7 +109,7 @@ export const TarsHologram: React.FC<TarsHologramProps> = ({ isOpen, onClose }) =
         <div className="flex items-center justify-between">
           <span className="flex items-center space-x-1">
             <Sliders className="w-3 h-3 text-sky-400" />
-            <span>Honesty:</span>
+            <span>{t('tars.honestyParam')}:</span>
           </span>
           <span className="font-bold text-sky-300">{honesty}%</span>
         </div>
@@ -111,7 +125,7 @@ export const TarsHologram: React.FC<TarsHologramProps> = ({ isOpen, onClose }) =
         <div className="flex items-center justify-between pt-1">
           <span className="flex items-center space-x-1">
             <Sparkles className="w-3 h-3 text-amber-400" />
-            <span>Humor:</span>
+            <span>{t('tars.humorParam')}:</span>
           </span>
           <span className="font-bold text-amber-300">{humor}%</span>
         </div>

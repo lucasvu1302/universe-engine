@@ -5,6 +5,7 @@ import megawaveVert from '@/shaders/ocean/megawave.vert.glsl';
 import megawaveFrag from '@/shaders/ocean/megawave.frag.glsl';
 import { ArrowLeftCircle, Clock, Waves, AlertTriangle } from 'lucide-react';
 import { AudioManager } from '@/engine/audio/AudioManager';
+import { useTranslation } from '@/i18n';
 
 interface MillersPlanetSceneProps {
   visible: boolean;
@@ -99,6 +100,8 @@ export const MillersPlanetScene: React.FC<MillersPlanetSceneProps> = ({ visible,
 };
 
 export const MillersHUD: React.FC<{ onExit: () => void }> = ({ onExit }) => {
+  const { t } = useTranslation();
+
   return (
     <div className="fixed inset-0 pointer-events-none z-40 flex flex-col justify-between p-4 md:p-6 select-none font-mono">
       {/* Top Header */}
@@ -107,10 +110,10 @@ export const MillersHUD: React.FC<{ onExit: () => void }> = ({ onExit }) => {
           <Waves className="w-4 h-4 text-sky-400 animate-bounce" />
           <div>
             <div className="text-[10px] text-sky-400 font-bold uppercase tracking-wider">
-              EXOPLANET EXPEDITION
+              {t('millers.sub')}
             </div>
             <div className="text-sm font-bold text-white tracking-widest">
-              MILLER'S OCEAN WORLD
+              {t('millers.title')}
             </div>
           </div>
         </div>
@@ -121,7 +124,7 @@ export const MillersHUD: React.FC<{ onExit: () => void }> = ({ onExit }) => {
           className="pointer-events-auto flex items-center space-x-2 px-4 py-2 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-medium border border-white/20 transition-all cursor-pointer backdrop-blur-md"
         >
           <ArrowLeftCircle className="w-4 h-4 text-sky-400" />
-          <span className="text-xs">Exit Through Wormhole</span>
+          <span className="text-xs">{t('millers.exitHyperspace')}</span>
         </button>
       </div>
 
@@ -131,17 +134,14 @@ export const MillersHUD: React.FC<{ onExit: () => void }> = ({ onExit }) => {
           <Clock className="w-5 h-5 text-red-400 shrink-0" />
           <div>
             <div className="text-xs font-bold text-red-300">
-              GRAVITATIONAL TIME DILATION: 61,320×
-            </div>
-            <div className="text-[11px] text-slate-300">
-              1 HOUR ON THIS WORLD = <strong className="text-white">7 YEARS ON EARTH</strong>
+              {t('millers.timeDilation')}
             </div>
           </div>
         </div>
 
         <div className="pointer-events-auto flex items-center space-x-2 bg-amber-950/70 backdrop-blur-md px-3 py-2 rounded-xl border border-amber-500/30 text-[11px] text-amber-300">
           <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-          <span>TIDAL MEGAWAVE APPROACHING • 1,200 METERS</span>
+          <span>{t('millers.megawaveWarning')}</span>
         </div>
       </div>
     </div>

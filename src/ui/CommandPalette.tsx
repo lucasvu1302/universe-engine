@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Compass, Globe2, Rocket, Play, Camera, Volume2, Sliders, X, Orbit, Film, Disc, Sparkles } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
-import { CELESTIAL_BODIES, ALL_CELESTIAL_KEYS } from '@/data/celestialData';
+import { CELESTIAL_BODIES, ALL_CELESTIAL_KEYS, getLocalizedBodyData } from '@/data/celestialData';
 import { CameraManager } from '@/engine/camera/CameraManager';
 import { AudioManager } from '@/engine/audio/AudioManager';
 import { CinematicDirector } from '@/engine/camera/CinematicDirector';
 import { HarmonicesMundiSynth } from '@/engine/audio/HarmonicesMundiSynth';
+import { useTranslation } from '@/i18n';
 
 export const CommandPalette: React.FC = () => {
+  const { t, language } = useTranslation();
   const isOpen = useAppStore((state) => state.isCommandPaletteOpen);
   const setIsOpen = useAppStore((state) => state.setCommandPaletteOpen);
   const setTargetId = useAppStore((state) => state.setTargetId);
@@ -39,8 +41,8 @@ export const CommandPalette: React.FC = () => {
     const list = [
       {
         id: 'galaxy',
-        title: 'Galaxy Overview',
-        category: 'Navigation',
+        title: t('commandPalette.cmdGalaxy'),
+        category: t('commandPalette.catNavigation'),
         icon: <Compass className="w-4 h-4 text-purple-400" />,
         action: () => {
           setCameraMode('GALAXY');
@@ -49,8 +51,8 @@ export const CommandPalette: React.FC = () => {
       },
       {
         id: 'blackhole',
-        title: 'Warp to Supermassive Black Hole (Gargantua)',
-        category: 'Navigation',
+        title: t('commandPalette.cmdBlackHole'),
+        category: t('commandPalette.catSingularity'),
         icon: <Orbit className="w-4 h-4 text-orange-400" />,
         action: () => {
           setTargetId('blackhole');
@@ -60,8 +62,8 @@ export const CommandPalette: React.FC = () => {
       },
       {
         id: 'flight',
-        title: 'Enable Free Flight (Spacecraft Controls)',
-        category: 'Navigation',
+        title: t('commandPalette.cmdFlight'),
+        category: t('commandPalette.catNavigation'),
         icon: <Rocket className="w-4 h-4 text-emerald-400" />,
         action: () => {
           setCameraMode('FREE_FLIGHT');
@@ -69,8 +71,8 @@ export const CommandPalette: React.FC = () => {
       },
       {
         id: 'pulsar',
-        title: 'Warp to Relativistic Pulsar (Neutron Star)',
-        category: 'Singularity',
+        title: t('commandPalette.cmdPulsar'),
+        category: t('commandPalette.catSingularity'),
         icon: <Sparkles className="w-4 h-4 text-cyan-400" />,
         action: () => {
           setTargetId('pulsar');
@@ -80,8 +82,8 @@ export const CommandPalette: React.FC = () => {
       },
       {
         id: 'tour',
-        title: 'Start Cinematic Auto Tour',
-        category: 'Experience',
+        title: t('commandPalette.cmdTour'),
+        category: t('commandPalette.catExperience'),
         icon: <Play className="w-4 h-4 text-amber-400" />,
         action: () => {
           startTour();
@@ -89,26 +91,17 @@ export const CommandPalette: React.FC = () => {
       },
       {
         id: 'photo',
-        title: 'Enter Photo Mode',
-        category: 'Experience',
+        title: t('nav.photoMode'),
+        category: t('commandPalette.catExperience'),
         icon: <Camera className="w-4 h-4 text-rose-400" />,
         action: () => {
           setPhotoMode(true);
         }
       },
       {
-        id: 'cinema-auto',
-        title: 'Enter Cinema Mode (IMAX 2.39:1 Anamorphic)',
-        category: 'Cinema',
-        icon: <Film className="w-4 h-4 text-rose-400" />,
-        action: () => {
-          CinematicDirector.getInstance().enterCinemaMode('AUTO');
-        }
-      },
-      {
         id: 'cinema-drift',
-        title: 'Cinema: Earth Sunrise Orbital Drift',
-        category: 'Cinema',
+        title: t('commandPalette.cmdCinemaDrift'),
+        category: t('commandPalette.catCinema'),
         icon: <Film className="w-4 h-4 text-amber-400" />,
         action: () => {
           CinematicDirector.getInstance().enterCinemaMode('ORBITAL_DRIFT');
@@ -116,8 +109,8 @@ export const CommandPalette: React.FC = () => {
       },
       {
         id: 'cinema-rings',
-        title: 'Cinema: Saturn Ice Rings Flyby',
-        category: 'Cinema',
+        title: t('commandPalette.cmdCinemaRingSki'),
+        category: t('commandPalette.catCinema'),
         icon: <Film className="w-4 h-4 text-sky-400" />,
         action: () => {
           CinematicDirector.getInstance().enterCinemaMode('RING_SKI');
@@ -125,8 +118,8 @@ export const CommandPalette: React.FC = () => {
       },
       {
         id: 'cinema-slingshot',
-        title: 'Cinema: Jupiter Gravitational Slingshot',
-        category: 'Cinema',
+        title: t('commandPalette.cmdCinemaSlingshot'),
+        category: t('commandPalette.catCinema'),
         icon: <Film className="w-4 h-4 text-purple-400" />,
         action: () => {
           CinematicDirector.getInstance().enterCinemaMode('SLINGSHOT');
@@ -134,8 +127,8 @@ export const CommandPalette: React.FC = () => {
       },
       {
         id: 'kepler-synth',
-        title: 'Toggle Kepler Harmonices Mundi Ambient Synth',
-        category: 'Audio',
+        title: t('commandPalette.cmdKeplerSynth'),
+        category: t('commandPalette.catAudio'),
         icon: <Disc className="w-4 h-4 text-indigo-400" />,
         action: () => {
           HarmonicesMundiSynth.getInstance().toggle();
@@ -144,8 +137,8 @@ export const CommandPalette: React.FC = () => {
       },
       {
         id: 'orbits',
-        title: 'Toggle Orbital Paths',
-        category: 'View',
+        title: t('commandPalette.cmdOrbits'),
+        category: t('commandPalette.catView'),
         icon: <Sliders className="w-4 h-4 text-sky-400" />,
         action: () => {
           toggleOrbits();
@@ -153,8 +146,8 @@ export const CommandPalette: React.FC = () => {
       },
       {
         id: 'sound',
-        title: soundEnabled ? 'Mute Spatial Audio' : 'Enable Spatial Audio',
-        category: 'Audio',
+        title: soundEnabled ? t('nav.muteAudio') : t('nav.enableAudio'),
+        category: t('commandPalette.catAudio'),
         icon: <Volume2 className="w-4 h-4 text-indigo-400" />,
         action: () => {
           toggleSound();
@@ -162,8 +155,8 @@ export const CommandPalette: React.FC = () => {
       },
       {
         id: 'graphics-ultra',
-        title: 'Graphics: ULTRA Quality',
-        category: 'Graphics',
+        title: t('commandPalette.cmdUltraGraphics'),
+        category: t('commandPalette.catGraphics'),
         icon: <Sliders className="w-4 h-4 text-emerald-400" />,
         action: () => {
           setGraphicsQuality('ULTRA');
@@ -171,18 +164,25 @@ export const CommandPalette: React.FC = () => {
       }
     ];
 
-    // All Celestial Bodies (Sun, 8 Planets, 10 Moons, Black Hole)
+    // All Celestial Bodies (Sun, 8 Planets, 10 Moons, Black Hole, Pulsar)
     const bodyItems = ALL_CELESTIAL_KEYS.map((key) => {
-      const b = CELESTIAL_BODIES[key];
-      const isMoon = b.type === 'moon';
-      const isBlackHole = b.type === 'black_hole';
+      const loc = getLocalizedBodyData(key);
+      const isMoon = CELESTIAL_BODIES[key]?.type === 'moon';
+      const isBlackHole = key === 'blackhole';
+      const isPulsar = key === 'pulsar';
 
       return {
         id: `body-${key}`,
-        title: `Go to ${b.name}`,
-        category: isBlackHole ? 'Singularity' : isMoon ? 'Moon' : 'Planet',
+        title: loc.displayName,
+        category: isBlackHole || isPulsar
+          ? t('commandPalette.catSingularity')
+          : isMoon
+          ? t('targetHud.knownMoons')
+          : t('commandPalette.catNavigation'),
         icon: isBlackHole ? (
           <Orbit className="w-4 h-4 text-orange-400" />
+        ) : isPulsar ? (
+          <Sparkles className="w-4 h-4 text-cyan-400" />
         ) : isMoon ? (
           <div className="w-2.5 h-2.5 rounded-full bg-slate-300 ml-0.5" />
         ) : (
@@ -193,6 +193,8 @@ export const CommandPalette: React.FC = () => {
           setCameraMode('ORBIT');
           if (key === 'blackhole') {
             CameraManager.getInstance().flyToBlackHole();
+          } else if (key === 'pulsar') {
+            CameraManager.getInstance().flyToPulsar();
           } else {
             CameraManager.getInstance().focusPlanet(key);
           }
@@ -201,7 +203,7 @@ export const CommandPalette: React.FC = () => {
     });
 
     return [...list, ...bodyItems];
-  }, [setCameraMode, setTargetId, startTour, setPhotoMode, toggleOrbits, soundEnabled, toggleSound, setGraphicsQuality]);
+  }, [t, language, setCameraMode, setTargetId, startTour, setPhotoMode, toggleOrbits, soundEnabled, toggleSound, setGraphicsQuality]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return commands;
@@ -221,7 +223,7 @@ export const CommandPalette: React.FC = () => {
           <Search className="w-4 h-4 text-sky-400 mr-3" />
           <input
             type="text"
-            placeholder="Search celestial bodies, moons, black hole, commands... (Esc to close)"
+            placeholder={t('commandPalette.placeholder')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
@@ -246,7 +248,7 @@ export const CommandPalette: React.FC = () => {
         <div className="max-h-80 overflow-y-auto p-2 space-y-1">
           {filtered.length === 0 ? (
             <div className="py-8 text-center text-xs text-slate-400 font-mono">
-              No matching celestial bodies or commands found.
+              {t('commandPalette.noResults')}
             </div>
           ) : (
             filtered.map((item) => (

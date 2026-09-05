@@ -1,3 +1,5 @@
+import { t } from '@/i18n';
+
 export interface CelestialBodyData {
   id: string;
   name: string;
@@ -584,3 +586,25 @@ export const ALL_CELESTIAL_KEYS = [
   'blackhole',
   'pulsar'
 ] as const;
+
+export interface LocalizedCelestialBodyData extends Omit<CelestialBodyData, 'type'> {
+  type: string;
+}
+
+export function getLocalizedBodyData(id: string): LocalizedCelestialBodyData {
+  const base = CELESTIAL_BODIES[id] || CELESTIAL_BODIES.sun;
+
+  const name = t(`celestial.${id}.name`);
+  const displayName = t(`celestial.${id}.displayName`);
+  const type = t(`celestial.${id}.type`);
+  const description = t(`celestial.${id}.description`);
+
+  return {
+    ...base,
+    name: name.startsWith('celestial.') ? (base?.name || id) : name,
+    displayName: displayName.startsWith('celestial.') ? (base?.displayName || id) : displayName,
+    type: type.startsWith('celestial.') ? (base?.type || 'celestial') : type,
+    description: description.startsWith('celestial.') ? (base?.description || '') : description
+  };
+}
+

@@ -4,8 +4,10 @@ import { useAppStore } from '@/stores/useAppStore';
 import { CinematicDirector, CinemaShotType } from '@/engine/camera/CinematicDirector';
 import { HarmonicesMundiSynth } from '@/engine/audio/HarmonicesMundiSynth';
 import { AudioManager } from '@/engine/audio/AudioManager';
+import { useTranslation } from '@/i18n';
 
 export const CinematicOverlay: React.FC = () => {
+  const { t } = useTranslation();
   const cinemaMode = useAppStore((state) => state.cinemaMode);
   const cinemaShot = useAppStore((state) => state.cinemaShot);
   const setCinemaShot = useAppStore((state) => state.setCinemaShot);
@@ -48,7 +50,7 @@ export const CinematicOverlay: React.FC = () => {
           <div className="flex items-center space-x-2 px-2.5 py-1 rounded-full bg-sky-500/10 border border-sky-500/30">
             <Film className="w-3.5 h-3.5 text-sky-400" />
             <span className="text-[10px] md:text-xs font-mono font-bold tracking-widest text-sky-300 uppercase">
-              IMAX 70MM • 2.39:1
+              {t('cinema.anamorphicBadge')}
             </span>
           </div>
           <div className="hidden sm:flex items-center space-x-2 text-[10px] font-mono text-slate-400">
@@ -125,7 +127,7 @@ export const CinematicOverlay: React.FC = () => {
           <button
             onClick={handleExit}
             className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-all cursor-pointer"
-            title="Exit Cinema Mode (Esc)"
+            title={t('common.exit')}
           >
             <X className="w-4 h-4" />
           </button>
@@ -147,17 +149,17 @@ export const CinematicOverlay: React.FC = () => {
       <div className="w-full h-14 md:h-20 bg-black/95 backdrop-blur-sm pointer-events-auto flex items-center justify-between px-4 md:px-8 border-t border-white/5 transition-all duration-700 animate-in slide-in-from-bottom">
         <div className="flex items-center space-x-2 text-[11px] font-mono text-slate-400">
           <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-          <span>DIRECTOR'S CUT:</span>
+          <span>{t('cinema.title')}:</span>
           <span className="text-white font-semibold tracking-wider">
-            {cinemaShot === 'ORBITAL_DRIFT' && 'EARTH TERMINATOR SUNRISE DRIFT'}
-            {cinemaShot === 'RING_SKI' && 'SATURN ICE RING SKIING FLYBY'}
-            {cinemaShot === 'SLINGSHOT' && 'JUPITER GRAVITATIONAL SLINGSHOT TO GARGANTUA'}
-            {cinemaShot === 'AUTO' && 'AUTONOMOUS CINEMATOGRAPHY'}
+            {cinemaShot === 'ORBITAL_DRIFT' && t('cinema.shotDrift')}
+            {cinemaShot === 'RING_SKI' && t('cinema.shotRingSki')}
+            {cinemaShot === 'SLINGSHOT' && t('cinema.shotSlingshot')}
+            {cinemaShot === 'AUTO' && t('cinema.shotAuto')}
           </span>
         </div>
 
         <div className="text-[10px] font-mono text-slate-500">
-          PRESS <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-300 font-bold">ESC</kbd> TO RETURN TO COCKPIT
+          {t('cinema.pressEsc')}
         </div>
       </div>
     </div>

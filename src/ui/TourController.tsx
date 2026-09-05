@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Play, Pause, SkipForward, SkipBack, X, Sparkles } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
-import { TOUR_SEQUENCE, CELESTIAL_BODIES } from '@/data/celestialData';
+import { TOUR_SEQUENCE, getLocalizedBodyData } from '@/data/celestialData';
 import { CameraManager } from '@/engine/camera/CameraManager';
 import { AudioManager } from '@/engine/audio/AudioManager';
+import { useTranslation } from '@/i18n';
 
 export const TourController: React.FC = () => {
+  const { t } = useTranslation();
   const activeTour = useAppStore((state) => state.activeTour);
   const tourIndex = useAppStore((state) => state.tourIndex);
   const nextTourStep = useAppStore((state) => state.nextTourStep);
@@ -40,7 +42,7 @@ export const TourController: React.FC = () => {
   if (!activeTour) return null;
 
   const currentId = TOUR_SEQUENCE[tourIndex];
-  const planetData = currentId ? CELESTIAL_BODIES[currentId] : null;
+  const planetData = currentId ? getLocalizedBodyData(currentId) : null;
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-md pointer-events-auto">
@@ -50,7 +52,7 @@ export const TourController: React.FC = () => {
           <div className="flex items-center space-x-2 text-amber-300">
             <Sparkles className="w-4 h-4 animate-spin-slow" />
             <span className="font-bold tracking-wider uppercase font-mono">
-              CINEMATIC EXPEDITION ({tourIndex + 1}/{TOUR_SEQUENCE.length})
+              {t('nav.tour')} ({tourIndex + 1}/{TOUR_SEQUENCE.length})
             </span>
           </div>
 
