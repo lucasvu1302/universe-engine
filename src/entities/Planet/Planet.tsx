@@ -64,9 +64,6 @@ export const Planet: React.FC<PlanetProps> = ({
     return data.id === 'earth' ? assets.getEarthCloudsMap() : null;
   }, [assets, data.id]);
 
-  const saturnRingsMap = useMemo(() => {
-    return data.rings ? assets.getSaturnRingsTexture() : null;
-  }, [assets, data.rings]);
 
   // 2. Earth Multi-Pass Shader Uniforms
   const earthGroundUniforms = useMemo(() => {
@@ -106,14 +103,13 @@ export const Planet: React.FC<PlanetProps> = ({
   const saturnRingUniforms = useMemo(() => {
     if (!data.rings) return null;
     return {
-      uRingTexture: { value: saturnRingsMap },
       uSunPosition: { value: new THREE.Vector3(0, 0, 0) },
       uPlanetCenter: { value: new THREE.Vector3() },
       uPlanetRadius: { value: data.visualRadius },
       uInnerRadius: { value: data.rings.innerRadius },
       uOuterRadius: { value: data.rings.outerRadius }
     };
-  }, [data.rings, saturnRingsMap, data.visualRadius]);
+  }, [data.rings, data.visualRadius]);
 
   useFrame(() => {
     const clock = SimulationClock.getInstance();

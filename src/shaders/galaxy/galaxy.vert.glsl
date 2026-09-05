@@ -3,26 +3,35 @@ uniform float uSize;
 
 attribute float aScale;
 attribute vec3 aColor;
-attribute float aAngle;
-attribute float aDistance;
+attribute vec2 aTwinkle;
 
 varying vec3 vColor;
 varying float vAlpha;
+varying vec2 vTwinkle;
 
 void main() {
   vColor = aColor;
+  vTwinkle = aTwinkle;
 
-  // Differential Galactic Rotation: inner stars rotate faster than outer stars
-  float currentAngle = aAngle + (uTime * 0.02) / (0.1 + aDistance * 0.005);
+  // Pattern speed density wave rotation (rigid whole-galaxy rotation)
+  // Maintains 100% of the spiral arm geometry, central bar, and spurs without winding into circles
+  float angle = uTime * 0.012;
+  float cosA = cos(angle);
+  float sinA = sin(angle);
   
   vec3 pos = position;
-  pos.x = cos(currentAngle) * aDistance;
-  pos.z = sin(currentAngle) * aDistance;
+  pos.x = position.x * cosA - position.z * sinA;
+  pos.z = position.x * sinA + position.z * cosA;
 
   vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
   gl_Position = projectionMatrix * mvPosition;
 
-  // Size attenuation
-  gl_PointSize = clamp((uSize * aScale) * (180.0 / -mvPosition.z), 1.0, 30.0);
-  vAlpha = clamp(1.2 - (aDistance / 250.0), 0.2, 1.0);
+  // Size attenuation with perspective scaling
+  float distToCam = -mvPosition.z;
+  gl_PointSize = clamp((uSize * aScale) * (340.0 / max(distToCam, 10.0)), 1.2, 45.0);
+  
+  // Radial alpha falloff
+  float r = length(position.xz);
+  vAlpha = clamp(1.4 - (r / 380.0) * 0.5, 0.4, 1.0);
 }
+
