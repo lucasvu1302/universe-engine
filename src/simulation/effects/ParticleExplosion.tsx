@@ -69,7 +69,7 @@ export const ParticleExplosion: React.FC<ParticleExplosionProps> = ({
     const geom = pointsRef.current.geometry;
     const posAttr = geom.attributes.position as THREE.BufferAttribute;
 
-    const expansion = clamped * maxSpread;
+    const expansion = Math.max(1.0, clamped * maxSpread);
     for (let i = 0; i < count; i++) {
       currentPositions[i * 3] = velocities[i * 3] * expansion;
       currentPositions[i * 3 + 1] = velocities[i * 3 + 1] * expansion;
@@ -83,7 +83,7 @@ export const ParticleExplosion: React.FC<ParticleExplosionProps> = ({
     }
   });
 
-  if (clamped <= 0 || clamped >= 1) return null;
+  if (clamped < 0 || clamped >= 1) return null;
 
   return (
     <points ref={pointsRef}>

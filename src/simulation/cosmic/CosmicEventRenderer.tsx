@@ -74,6 +74,14 @@ export const CosmicEventRenderer: React.FC<CosmicEventRendererProps> = ({ playba
           <pointLight color="#38bdf8" intensity={12} distance={200} />
           {/* Stellar Wind Shockwave */}
           <ShockwaveRing progress={progress} maxRadius={95} color="#38bdf8" thickness={2.5} />
+          {/* Stellar Ignition & Accretion Inflow Sparks */}
+          <ParticleExplosion
+            progress={progress}
+            count={1600}
+            primaryColor="#38bdf8"
+            secondaryColor="#818cf8"
+            maxSpread={85}
+          />
           {/* Gas Nebula Nursery */}
           <NebulaCloud color="#818cf8" size={55} intensity={0.65} />
         </group>

@@ -64,3 +64,58 @@ describe('SimulationClock Engine', () => {
     expect(target.z).toBeCloseTo(100, 2);
   });
 });
+
+describe('Cosmic History Simulation', () => {
+  it('correctly ranges timeline to 75s and evaluates all 5 cosmic events', async () => {
+    const { SimulationManager } = await import('../simulation/core/SimulationManager');
+    const { CosmicEventManager } = await import('../simulation/cosmic/CosmicEventManager');
+    const { COSMIC_EVENTS } = await import('../simulation/data/cosmicEventsData');
+
+    const sm = SimulationManager.getInstance();
+    const cm = CosmicEventManager.getInstance();
+
+    sm.startScenario('cosmic_history');
+    const timeline = sm.getTimelineEngine();
+
+    expect(timeline.getTimeRange()).toEqual({ min: 0, max: 75 });
+    expect(COSMIC_EVENTS.length).toBe(5);
+
+    // Event 0: BIG_BANG (0s to 15s)
+    timeline.seek(0);
+    let state = cm.evaluateAtTime(timeline.getCurrentTime());
+    expect(state.currentEvent.type).toBe('BIG_BANG');
+    expect(state.progress).toBeCloseTo(0, 2);
+
+    // Event 1: STAR_BIRTH (15s to 30s)
+    timeline.seek(15);
+    state = cm.evaluateAtTime(timeline.getCurrentTime());
+    expect(state.currentEvent.type).toBe('STAR_BIRTH');
+    expect(state.progress).toBeCloseTo(0, 2);
+
+    // Event 2: SUPERNOVA (30s to 45s)
+    timeline.seek(30);
+    state = cm.evaluateAtTime(timeline.getCurrentTime());
+    expect(state.currentEvent.type).toBe('SUPERNOVA');
+    expect(state.progress).toBeCloseTo(0, 2);
+
+    // Event 3: PLANET_FORMATION (45s to 60s)
+    timeline.seek(45);
+    state = cm.evaluateAtTime(timeline.getCurrentTime());
+    expect(state.currentEvent.type).toBe('PLANET_FORMATION');
+    expect(state.progress).toBeCloseTo(0, 2);
+
+    // Event 4: GALAXY_COLLISION (60s to 75s)
+    timeline.seek(60);
+    state = cm.evaluateAtTime(timeline.getCurrentTime());
+    expect(state.currentEvent.type).toBe('GALAXY_COLLISION');
+    expect(state.progress).toBeCloseTo(0, 2);
+
+    // Mid-event progress check (7.5s into Big Bang)
+    timeline.seek(7.5);
+    state = cm.evaluateAtTime(timeline.getCurrentTime());
+    expect(state.currentEvent.type).toBe('BIG_BANG');
+    expect(state.progress).toBeCloseTo(0.5, 2);
+
+    sm.exitScenario();
+  });
+});

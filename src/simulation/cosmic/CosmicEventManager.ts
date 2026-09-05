@@ -50,10 +50,14 @@ export class CosmicEventManager {
     // Each event occupies 15 seconds in the 75-second timeline (0 to 75)
     const eventDuration = 15;
     const totalEvents = COSMIC_EVENTS.length;
-    const clampedTime = Math.min(Math.max(timeSeconds, 0), totalEvents * eventDuration);
+    const maxTime = totalEvents * eventDuration;
+    const clampedTime = Math.min(Math.max(timeSeconds, 0), maxTime);
 
-    const index = Math.min(Math.floor(clampedTime / eventDuration), totalEvents - 1);
-    const progress = (clampedTime % eventDuration) / eventDuration;
+    const rawIndex = Math.floor(clampedTime / eventDuration);
+    const index = Math.min(rawIndex, totalEvents - 1);
+    const progress = clampedTime >= maxTime
+      ? 1.0
+      : (clampedTime % eventDuration) / eventDuration;
 
     if (index !== this.currentEventIndex) {
       this.currentEventIndex = index;

@@ -33,8 +33,10 @@ import { useTranslation } from '@/i18n';
 export const SuperNav: React.FC = () => {
   const [isPlanetsOpen, setIsPlanetsOpen] = useState(false);
   const [isSpacecraftOpen, setIsSpacecraftOpen] = useState(false);
+  const [isExperienceOpen, setIsExperienceOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const spacecraftDropdownRef = useRef<HTMLDivElement>(null);
+  const experienceDropdownRef = useRef<HTMLDivElement>(null);
 
   const cameraMode = useAppStore((state) => state.cameraMode);
   const setCameraMode = useAppStore((state) => state.setCameraMode);
@@ -82,6 +84,9 @@ export const SuperNav: React.FC = () => {
       }
       if (spacecraftDropdownRef.current && !spacecraftDropdownRef.current.contains(e.target as Node)) {
         setIsSpacecraftOpen(false);
+      }
+      if (experienceDropdownRef.current && !experienceDropdownRef.current.contains(e.target as Node)) {
+        setIsExperienceOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -196,7 +201,7 @@ export const SuperNav: React.FC = () => {
       </div>
 
       {/* Main Navigation Bar */}
-      <nav className="pointer-events-auto flex-1 min-w-0 flex items-center space-x-1 px-1.5 py-1 rounded-full glass-panel text-xs text-slate-200 shadow-2xl overflow-x-auto md:overflow-visible no-scrollbar">
+      <nav className="pointer-events-auto flex items-center space-x-1 px-1.5 py-1 rounded-full glass-panel text-xs text-slate-200 shadow-2xl overflow-visible shrink-0 z-10">
         {/* Explore Solar System */}
         <button
           onClick={handleExploreClick}
@@ -208,7 +213,7 @@ export const SuperNav: React.FC = () => {
           title={t('nav.explore')}
         >
           <Compass className="w-3.5 h-3.5 text-sky-400" />
-          <span className="font-medium">{t('nav.explore')}</span>
+          <span className="font-medium hidden sm:inline">{t('nav.explore')}</span>
         </button>
 
         {/* Celestial Bodies & Moons Dropdown */}
@@ -226,7 +231,8 @@ export const SuperNav: React.FC = () => {
             title={t('nav.planets')}
           >
             <Globe2 className="w-3.5 h-3.5 text-sky-400" />
-            <span className="font-medium">{t('nav.planets')}</span>
+            <span className="font-medium hidden sm:inline">{t('nav.planets')}</span>
+            <ChevronDown className="w-3 h-3 text-sky-300 opacity-70" />
           </button>
 
           {isPlanetsOpen && (
@@ -330,7 +336,7 @@ export const SuperNav: React.FC = () => {
           title={t('nav.blackHole')}
         >
           <Orbit className="w-3.5 h-3.5 text-orange-400 animate-spin" style={{ animationDuration: '8s' }} />
-          <span className="font-medium">{t('nav.blackHole')}</span>
+          <span className="font-medium hidden md:inline">{t('nav.blackHole')}</span>
         </button>
 
         {/* Galaxy Overview */}
@@ -344,7 +350,7 @@ export const SuperNav: React.FC = () => {
           title={t('nav.galaxy')}
         >
           <Disc className="w-3.5 h-3.5 text-purple-300" />
-          <span className="font-medium">{t('nav.galaxy')}</span>
+          <span className="font-medium hidden md:inline">{t('nav.galaxy')}</span>
         </button>
 
         {/* Cosmic Events Timeline */}
@@ -358,7 +364,7 @@ export const SuperNav: React.FC = () => {
           title={language === 'vi' ? 'Sự Kiện Vũ Trụ: Big Bang, Sao, Siêu Tân Tinh' : 'Cosmic History & Events'}
         >
           <Sparkles className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
-          <span className="font-medium">{language === 'vi' ? 'Sự Kiện' : 'Events'}</span>
+          <span className="font-medium hidden sm:inline">{language === 'vi' ? 'Sự Kiện' : 'Events'}</span>
         </button>
 
         {/* Spacecraft & Flight Dropdown */}
@@ -381,7 +387,7 @@ export const SuperNav: React.FC = () => {
             title={t('nav.flight')}
           >
             <Rocket className="w-3.5 h-3.5 text-emerald-300" />
-            <span className="font-medium">{t('nav.flight')}</span>
+            <span className="font-medium hidden sm:inline">{t('nav.flight')}</span>
             <ChevronDown className="w-3 h-3 text-emerald-300 opacity-70" />
           </button>
 
@@ -495,124 +501,242 @@ export const SuperNav: React.FC = () => {
           )}
         </div>
 
-        {/* Tour */}
+        {/* Tour (Widescreen shortcut) */}
         <button
           onClick={() => {
             audio.playUIClick();
             setCompareMode(false);
             startTour();
           }}
-          className="flex items-center space-x-1 px-2.5 py-1 rounded-full hover:text-white hover:bg-white/10 transition-all text-amber-300 cursor-pointer shrink-0"
+          className="hidden xl:flex items-center space-x-1 px-2.5 py-1 rounded-full hover:text-white hover:bg-white/10 transition-all text-amber-300 cursor-pointer shrink-0"
           title={t('nav.tour')}
         >
           <Play className="w-3.5 h-3.5 fill-amber-300" />
           <span className="font-medium">{t('nav.tour')}</span>
         </button>
 
-        {/* Cinema Director Mode */}
+        {/* Cinema Director Mode (Widescreen shortcut) */}
         <button
           onClick={() => {
             audio.playUIClick();
             CinematicDirector.getInstance().enterCinemaMode('AUTO');
           }}
-          className="flex items-center space-x-1 px-2.5 py-1 rounded-full hover:text-white hover:bg-white/10 transition-all text-rose-400 cursor-pointer shrink-0"
+          className="hidden xl:flex items-center space-x-1 px-2.5 py-1 rounded-full hover:text-white hover:bg-white/10 transition-all text-rose-400 cursor-pointer shrink-0"
           title={t('nav.cinema')}
         >
           <Film className="w-3.5 h-3.5 text-rose-400" />
           <span className="font-medium">{t('nav.cinema')}</span>
         </button>
 
-        {/* Surface Landing */}
-        <button
-          onClick={handleLandClick}
-          className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/30 transition-all cursor-pointer shrink-0"
-          title={t('nav.land')}
-        >
-          <Navigation className="w-3.5 h-3.5 text-orange-400" />
-          <span className="font-medium">{t('nav.land')}</span>
-        </button>
+        {/* Experiences & Advanced Features Dropdown */}
+        <div className="relative shrink-0" ref={experienceDropdownRef}>
+          <button
+            onClick={() => {
+              audio.playUIClick();
+              setIsExperienceOpen(!isExperienceOpen);
+            }}
+            className={`flex items-center space-x-1 px-2.5 py-1 rounded-full transition-all cursor-pointer ${
+              isExperienceOpen ||
+              inExoSystem ||
+              isSandboxOpen ||
+              isTarsOpen ||
+              compareMode
+                ? 'bg-amber-500/25 text-amber-300 font-semibold border border-amber-500/30'
+                : 'hover:text-white hover:bg-white/10 text-slate-300'
+            }`}
+            title={language === 'vi' ? 'Trải Nghiệm & Công Cụ' : 'Experiences & Tools'}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span className="font-medium hidden sm:inline">{language === 'vi' ? 'Trải Nghiệm' : 'Experiences'}</span>
+            <ChevronDown className="w-3 h-3 text-slate-400 opacity-70" />
+          </button>
 
-        {/* 4D Wormhole to Miller's Ocean World */}
-        <button
-          onClick={() => {
-            audio.playWarpDrive();
-            setInExoSystem(!inExoSystem);
-          }}
-          className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 transition-all cursor-pointer shrink-0"
-          title={t('nav.wormhole')}
-        >
-          <Waves className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="font-medium">{t('nav.wormhole')}</span>
-        </button>
+          {isExperienceOpen && (
+            <div className="absolute top-full mt-2 right-0 w-72 max-h-[32rem] overflow-y-auto rounded-2xl glass-panel-glow py-2 shadow-2xl border border-amber-500/30 z-50 animate-in fade-in zoom-in-95 duration-150 no-scrollbar">
+              {/* 1. Cinema */}
+              <button
+                onClick={() => {
+                  setIsExperienceOpen(false);
+                  audio.playUIClick();
+                  CinematicDirector.getInstance().enterCinemaMode('AUTO');
+                }}
+                className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center space-x-2.5 text-xs cursor-pointer group"
+              >
+                <div className="p-1.5 rounded-lg bg-rose-500/20 text-rose-400 group-hover:bg-rose-500/30">
+                  <Film className="w-4 h-4" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-rose-300 font-bold">
+                    {language === 'vi' ? 'Chế Độ Điện Ảnh (IMAX)' : 'Cinema Director Mode (IMAX)'}
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    {language === 'vi' ? 'Khung hình 2.39:1 & nhạc Kepler' : '2.39:1 anamorphic & Kepler synth'}
+                  </div>
+                </div>
+              </button>
 
-        {/* Sandbox Cataclysms */}
-        <button
-          onClick={() => {
-            audio.playUIClick();
-            setSandboxOpen(!isSandboxOpen);
-          }}
-          className="flex items-center space-x-1 px-2.5 py-1 rounded-full hover:text-white hover:bg-white/10 text-rose-400 border border-rose-500/30 transition-all cursor-pointer shrink-0"
-          title={t('nav.sandbox')}
-        >
-          <Bomb className="w-3.5 h-3.5 text-rose-400" />
-          <span className="font-medium">{t('nav.sandbox')}</span>
-        </button>
+              {/* 2. Tour */}
+              <button
+                onClick={() => {
+                  setIsExperienceOpen(false);
+                  audio.playUIClick();
+                  setCompareMode(false);
+                  startTour();
+                }}
+                className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center space-x-2.5 text-xs cursor-pointer group"
+              >
+                <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 group-hover:bg-amber-500/30">
+                  <Play className="w-4 h-4 fill-amber-400" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-amber-300 font-bold">
+                    {language === 'vi' ? 'Tham Quan Tự Động' : 'Guided Planetary Tour'}
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    {language === 'vi' ? 'Hành trình bay tự động qua các thiên thể' : 'Automated cinematic voyage through space'}
+                  </div>
+                </div>
+              </button>
 
-        {/* AI TARS Copilot */}
-        <button
-          onClick={() => {
-            audio.playUIClick();
-            setTarsOpen(!isTarsOpen);
-          }}
-          className={`flex items-center space-x-1 px-2.5 py-1 rounded-full border transition-all cursor-pointer shrink-0 ${
-            isTarsOpen
-              ? 'bg-sky-500 text-white font-semibold shadow-md shadow-sky-500/30'
-              : 'hover:text-white hover:bg-white/10 text-sky-300 border-sky-500/30'
-          }`}
-          title={t('nav.tars')}
-        >
-          <Bot className="w-3.5 h-3.5 text-sky-400" />
-          <span className="font-medium">{t('nav.tars')}</span>
-        </button>
+              <div className="h-px bg-white/10 my-1" />
+              {/* 3. Surface Landing */}
+              <button
+                onClick={() => {
+                  setIsExperienceOpen(false);
+                  handleLandClick();
+                }}
+                className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center space-x-2.5 text-xs cursor-pointer group"
+              >
+                <div className="p-1.5 rounded-lg bg-orange-500/20 text-orange-400 group-hover:bg-orange-500/30">
+                  <Navigation className="w-4 h-4" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-orange-300 font-bold">
+                    {language === 'vi' ? 'Đổ Bộ Bề Mặt (Mars / Moon)' : 'Surface Landing (Mars / Moon)'}
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    {language === 'vi' ? 'Hạ cánh xuống hố Jezero & bãi đáp Apollo 11' : 'Touch down on Jezero crater & Apollo 11'}
+                  </div>
+                </div>
+              </button>
 
-        {/* Compare */}
-        <button
-          onClick={handleCompareClick}
-          className={`flex items-center space-x-1 px-2.5 py-1 rounded-full transition-all cursor-pointer shrink-0 ${
-            compareMode
-              ? 'bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-600/30'
-              : 'hover:text-white hover:bg-white/10'
-          }`}
-          title="Compare"
-        >
-          <Scale className="w-3.5 h-3.5 text-indigo-300" />
-          <span className="font-medium">Compare</span>
-        </button>
+              {/* 4. Wormhole */}
+              <button
+                onClick={() => {
+                  setIsExperienceOpen(false);
+                  audio.playWarpDrive();
+                  setInExoSystem(!inExoSystem);
+                }}
+                className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center space-x-2.5 text-xs cursor-pointer group"
+              >
+                <div className="p-1.5 rounded-lg bg-cyan-500/20 text-cyan-400 group-hover:bg-cyan-500/30">
+                  <Waves className="w-4 h-4" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-cyan-300 font-bold">
+                    {language === 'vi' ? "Lỗ Sâu 4D (Hành Tinh Miller)" : "4D Wormhole (Miller's Planet)"}
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    {language === 'vi' ? 'Vượt lỗ sâu đến đại dương sóng thần 1.2km' : 'Traverse wormhole to 1.2km tidal ocean'}
+                  </div>
+                </div>
+              </button>
 
-        {/* Scale Explorer ("How Big is Space?") */}
-        <button
-          onClick={() => {
-            audio.playUIClick();
-            setScaleExplorer(true);
-          }}
-          className="flex items-center space-x-1 px-2.5 py-1 rounded-full hover:text-white hover:bg-white/10 transition-all text-sky-400 cursor-pointer shrink-0"
-          title={t('nav.scale')}
-        >
-          <span className="font-mono text-xs font-bold">10ⁿ</span>
-          <span className="font-medium">{t('nav.scale')}</span>
-        </button>
+              {/* 5. Sandbox */}
+              <button
+                onClick={() => {
+                  setIsExperienceOpen(false);
+                  audio.playUIClick();
+                  setSandboxOpen(!isSandboxOpen);
+                }}
+                className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center space-x-2.5 text-xs cursor-pointer group"
+              >
+                <div className="p-1.5 rounded-lg bg-rose-500/20 text-rose-400 group-hover:bg-rose-500/30">
+                  <Bomb className="w-4 h-4" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-rose-300 font-bold">
+                    {language === 'vi' ? 'Hộp Cát Thảm Họa Vũ Trụ' : 'Cosmic Sandbox Cataclysms'}
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    {language === 'vi' ? 'Thiên thạch đâm Trái Đất, siêu tân tinh' : 'Trigger asteroid impacts & supernova'}
+                  </div>
+                </div>
+              </button>
 
-        {/* Photo Mode */}
-        <button
-          onClick={() => {
-            audio.playUIClick();
-            setPhotoMode(true);
-          }}
-          className="p-1 rounded-full hover:text-white hover:bg-white/10 transition-all cursor-pointer shrink-0 text-slate-300"
-          title={t('nav.photoMode')}
-        >
-          <Camera className="w-3.5 h-3.5 text-rose-400" />
-        </button>
+              {/* 6. TARS */}
+              <button
+                onClick={() => {
+                  setIsExperienceOpen(false);
+                  audio.playUIClick();
+                  setTarsOpen(!isTarsOpen);
+                }}
+                className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center space-x-2.5 text-xs cursor-pointer group"
+              >
+                <div className="p-1.5 rounded-lg bg-sky-500/20 text-sky-400 group-hover:bg-sky-500/30">
+                  <Bot className="w-4 h-4" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-sky-300 font-bold">
+                    {language === 'vi' ? 'Trợ Lý AI TARS Copilot' : 'AI TARS Hologram Copilot'}
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    {language === 'vi' ? 'Hỏi đáp thiên văn & giải thích vật lý' : 'Astrophysics Q&A & mission companion'}
+                  </div>
+                </div>
+              </button>
+
+              <div className="h-px bg-white/10 my-1" />
+
+              {/* 7. Compare */}
+              <button
+                onClick={() => {
+                  setIsExperienceOpen(false);
+                  handleCompareClick();
+                }}
+                className="w-full text-left px-3.5 py-1.5 hover:bg-white/10 flex items-center justify-between text-xs cursor-pointer"
+              >
+                <div className="flex items-center space-x-2 text-indigo-300">
+                  <Scale className="w-4 h-4" />
+                  <span>{language === 'vi' ? 'So Sánh Kích Thước' : 'Scale Comparison'}</span>
+                </div>
+                <span className="text-[10px] text-slate-400 font-mono">1:1</span>
+              </button>
+
+              {/* 8. Scale Explorer */}
+              <button
+                onClick={() => {
+                  setIsExperienceOpen(false);
+                  audio.playUIClick();
+                  setScaleExplorer(true);
+                }}
+                className="w-full text-left px-3.5 py-1.5 hover:bg-white/10 flex items-center justify-between text-xs cursor-pointer"
+              >
+                <div className="flex items-center space-x-2 text-sky-300">
+                  <span className="font-mono text-xs font-bold text-sky-400">10ⁿ</span>
+                  <span>{language === 'vi' ? 'Thước Đo Vũ Trụ' : 'Scale Explorer'}</span>
+                </div>
+                <span className="text-[10px] text-slate-400 font-mono">10⁻¹⁵ - 10²⁶m</span>
+              </button>
+
+              {/* 9. Photo Mode */}
+              <button
+                onClick={() => {
+                  setIsExperienceOpen(false);
+                  audio.playUIClick();
+                  setPhotoMode(true);
+                }}
+                className="w-full text-left px-3.5 py-1.5 hover:bg-white/10 flex items-center justify-between text-xs cursor-pointer"
+              >
+                <div className="flex items-center space-x-2 text-rose-300">
+                  <Camera className="w-4 h-4" />
+                  <span>{language === 'vi' ? 'Chế Độ Chụp Ảnh' : 'Photo Mode'}</span>
+                </div>
+                <span className="text-[10px] text-slate-400 font-mono">4K HD</span>
+              </button>
+            </div>
+          )}
+        </div>
       </nav>
 
       {/* Right Controls */}

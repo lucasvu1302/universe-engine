@@ -30,7 +30,7 @@ export const ShockwaveRing: React.FC<ShockwaveRingProps> = ({
     }
   });
 
-  if (clamped <= 0 || clamped >= 1) return null;
+  if (clamped < 0 || clamped >= 1) return null;
 
   return (
     <mesh ref={meshRef} rotation={rotation}>

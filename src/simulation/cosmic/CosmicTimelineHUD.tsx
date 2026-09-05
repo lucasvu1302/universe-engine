@@ -24,9 +24,12 @@ export const CosmicTimelineHUD: React.FC = () => {
 
   const [playback, setPlayback] = useState<CosmicPlaybackState>(manager.getPlaybackState());
   const [isPlaying, setIsPlaying] = useState(timeline.getIsPlaying());
+  const [currentTime, setCurrentTime] = useState(timeline.getCurrentTime());
+  const [speed, setSpeed] = useState(timeline.getSpeed());
 
   useEffect(() => {
     const unsubTime = eventBus.on("timeline:time_update", (time) => {
+      setCurrentTime(time);
       setPlayback({ ...manager.evaluateAtTime(time) });
     });
 
@@ -34,20 +37,34 @@ export const CosmicTimelineHUD: React.FC = () => {
       setIsPlaying(playing);
     });
 
+    const unsubSpeed = eventBus.on("timeline:speed_change", (spd) => {
+      setSpeed(spd);
+    });
+
     return () => {
       unsubTime();
       unsubPlay();
+      unsubSpeed();
     };
   }, [eventBus, manager]);
 
   const handleSelectEvent = (index: number) => {
     // Jump timeline to event start time (index * 15 seconds)
-    timeline.seek(index * 15);
+    const targetTime = index * 15;
+    timeline.seek(targetTime);
+    manager.selectEventByIndex(index);
+    timeline.play();
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const t = parseFloat(e.target.value);
+    setCurrentTime(t);
     timeline.seek(t);
+  };
+
+  const handleSpeedToggle = () => {
+    const nextSpeed = speed === 1.0 ? 2.0 : speed === 2.0 ? 0.5 : 1.0;
+    timeline.setSpeed(nextSpeed);
   };
 
   return (
@@ -160,11 +177,23 @@ export const CosmicTimelineHUD: React.FC = () => {
             </button>
 
             <button
-              onClick={() => timeline.seek(0)}
+              onClick={() => {
+                timeline.seek(0);
+                timeline.play();
+              }}
               className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 cursor-pointer transition-all shrink-0"
               title={isVi ? "Xem Lại Từ Big Bang" : "Restart to Big Bang"}
             >
               <RotateCcw className="w-4 h-4" />
+            </button>
+
+            {/* Speed toggle */}
+            <button
+              onClick={handleSpeedToggle}
+              className="px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-[11px] font-bold text-purple-300 border border-purple-500/20 cursor-pointer transition-all shrink-0"
+              title={isVi ? "Tốc độ phát" : "Playback Speed"}
+            >
+              {speed}x
             </button>
 
             {/* Scrubber slider across 75s */}
@@ -173,11 +202,16 @@ export const CosmicTimelineHUD: React.FC = () => {
                 type="range"
                 min={0}
                 max={75}
-                step={0.5}
-                value={timeline.getCurrentTime()}
+                step={0.1}
+                value={currentTime}
                 onChange={handleSeek}
                 className="w-full accent-purple-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer appearance-none"
               />
+            </div>
+
+            {/* Current Time Display */}
+            <div className="text-[10px] text-slate-400 font-mono shrink-0 pl-1">
+              {Math.min(75, Math.max(0, currentTime)).toFixed(1)}s / 75s
             </div>
           </div>
         </div>

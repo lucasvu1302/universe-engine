@@ -50,10 +50,12 @@ export class SimulationManager {
         break;
 
       case "cosmic_history":
-        // Cosmic timeline: 13.8 Ga (Big Bang) down to 0 Ga (Present)
-        this.timelineEngine.setTimeRange(0, 13.8);
+        // Cosmic timeline: 5 events * 15 seconds = 75 seconds total
+        this.timelineEngine.setTimeRange(0, 75);
         this.timelineEngine.seek(0);
-        this.timelineEngine.setSpeed(0.5);
+        this.timelineEngine.setSpeed(1.0);
+        this.timelineEngine.setLoop(true);
+        this.timelineEngine.play();
         break;
 
       case "none":
