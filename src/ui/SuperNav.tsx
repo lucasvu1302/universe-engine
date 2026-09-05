@@ -18,18 +18,23 @@ import {
   Bot,
   Bomb,
   Waves,
-  Navigation
+  Navigation,
+  ChevronDown,
+  Sparkles
 } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { CELESTIAL_BODIES, PLANET_KEYS } from '@/data/celestialData';
 import { AudioManager } from '@/engine/audio/AudioManager';
 import { CameraManager } from '@/engine/camera/CameraManager';
 import { CinematicDirector } from '@/engine/camera/CinematicDirector';
+import { SimulationManager } from '@/simulation/core/SimulationManager';
 import { useTranslation } from '@/i18n';
 
 export const SuperNav: React.FC = () => {
   const [isPlanetsOpen, setIsPlanetsOpen] = useState(false);
+  const [isSpacecraftOpen, setIsSpacecraftOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const spacecraftDropdownRef = useRef<HTMLDivElement>(null);
 
   const cameraMode = useAppStore((state) => state.cameraMode);
   const setCameraMode = useAppStore((state) => state.setCameraMode);
@@ -74,6 +79,9 @@ export const SuperNav: React.FC = () => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsPlanetsOpen(false);
+      }
+      if (spacecraftDropdownRef.current && !spacecraftDropdownRef.current.contains(e.target as Node)) {
+        setIsSpacecraftOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -140,6 +148,22 @@ export const SuperNav: React.FC = () => {
     }
   };
 
+  const handleLaunchClick = () => {
+    audio.playUIClick();
+    setIsSpacecraftOpen(false);
+    setCompareMode(false);
+    SimulationManager.getInstance().startScenario('earth_launch');
+  };
+
+  const handleSpacecraftSelect = (id: string) => {
+    audio.playUIClick();
+    setIsSpacecraftOpen(false);
+    setCompareMode(false);
+    setTargetId(id);
+    setCameraMode('ORBIT');
+    cam.focusPlanet(id);
+  };
+
   const handleCompareClick = () => {
     audio.playUIClick();
     const next = !compareMode;
@@ -172,7 +196,7 @@ export const SuperNav: React.FC = () => {
       </div>
 
       {/* Main Navigation Bar */}
-      <nav className="pointer-events-auto flex-1 min-w-0 flex items-center space-x-1 px-1.5 py-1 rounded-full glass-panel text-xs text-slate-200 shadow-2xl overflow-x-auto no-scrollbar">
+      <nav className="pointer-events-auto flex-1 min-w-0 flex items-center space-x-1 px-1.5 py-1 rounded-full glass-panel text-xs text-slate-200 shadow-2xl overflow-x-auto md:overflow-visible no-scrollbar">
         {/* Explore Solar System */}
         <button
           onClick={handleExploreClick}
@@ -228,6 +252,23 @@ export const SuperNav: React.FC = () => {
                       <span className="font-medium">{t(`celestial.${key}.name`)}</span>
                       <span className="text-[10px] text-slate-400 font-mono">{p.orbitalDistanceAU} AU</span>
                     </button>
+                    {key === 'earth' && (
+                      <button
+                        onClick={() => {
+                          audio.playUIClick();
+                          setIsPlanetsOpen(false);
+                          setCompareMode(false);
+                          SimulationManager.getInstance().startScenario('earth_history');
+                        }}
+                        className="w-full text-left pl-7 pr-3.5 py-1 hover:bg-emerald-500/10 flex items-center justify-between text-[11px] cursor-pointer text-emerald-300 group"
+                      >
+                        <span className="flex items-center space-x-1.5">
+                          <Sparkles className="w-3 h-3 text-emerald-400 group-hover:scale-110 transition-transform" />
+                          <span className="font-semibold">{language === 'vi' ? 'Lịch Sử Địa Chất (4.54 Ga)' : 'Geological Timeline (4.54 Ga)'}</span>
+                        </span>
+                        <span className="text-[9px] px-1.5 py-0.2 bg-emerald-500/20 text-emerald-300 rounded font-mono">3D</span>
+                      </button>
+                    )}
                     {/* Render Moons indented */}
                     {p.moons &&
                       p.moons.map((mKey) => {
@@ -306,19 +347,153 @@ export const SuperNav: React.FC = () => {
           <span className="font-medium">{t('nav.galaxy')}</span>
         </button>
 
-        {/* Free Flight Mode */}
+        {/* Cosmic Events Timeline */}
         <button
-          onClick={handleFlightClick}
-          className={`flex items-center space-x-1 px-2.5 py-1 rounded-full transition-all cursor-pointer shrink-0 ${
-            cameraMode === 'FREE_FLIGHT'
-              ? 'bg-emerald-600 text-white font-semibold shadow-md shadow-emerald-600/30'
-              : 'hover:text-white hover:bg-white/10'
-          }`}
-          title={t('nav.flight')}
+          onClick={() => {
+            audio.playUIClick();
+            setCompareMode(false);
+            SimulationManager.getInstance().startScenario('cosmic_history');
+          }}
+          className="flex items-center space-x-1 px-2.5 py-1 rounded-full transition-all cursor-pointer shrink-0 hover:text-white hover:bg-white/10 text-purple-300"
+          title={language === 'vi' ? 'Sự Kiện Vũ Trụ: Big Bang, Sao, Siêu Tân Tinh' : 'Cosmic History & Events'}
         >
-          <Rocket className="w-3.5 h-3.5 text-emerald-300" />
-          <span className="font-medium">{t('nav.flight')}</span>
+          <Sparkles className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
+          <span className="font-medium">{language === 'vi' ? 'Sự Kiện' : 'Events'}</span>
         </button>
+
+        {/* Spacecraft & Flight Dropdown */}
+        <div className="relative shrink-0" ref={spacecraftDropdownRef}>
+          <button
+            onClick={() => {
+              audio.playUIClick();
+              setIsSpacecraftOpen(!isSpacecraftOpen);
+            }}
+            className={`flex items-center space-x-1 px-2.5 py-1 rounded-full transition-all cursor-pointer ${
+              isSpacecraftOpen ||
+              cameraMode === 'FREE_FLIGHT' ||
+              selectedTarget === 'iss' ||
+              selectedTarget === 'jwst' ||
+              selectedTarget === 'voyager1' ||
+              selectedTarget === 'voyager2'
+                ? 'bg-emerald-600 text-white font-semibold shadow-md shadow-emerald-600/30'
+                : 'hover:text-white hover:bg-white/10 text-emerald-300'
+            }`}
+            title={t('nav.flight')}
+          >
+            <Rocket className="w-3.5 h-3.5 text-emerald-300" />
+            <span className="font-medium">{t('nav.flight')}</span>
+            <ChevronDown className="w-3 h-3 text-emerald-300 opacity-70" />
+          </button>
+
+          {isSpacecraftOpen && (
+            <div className="absolute top-full mt-2 left-0 w-72 rounded-2xl glass-panel-glow py-2 shadow-2xl border border-emerald-500/40 z-50 animate-in fade-in zoom-in-95 duration-150">
+              {/* 1. Earth Launch Simulation */}
+              <button
+                onClick={handleLaunchClick}
+                className="w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center space-x-2.5 text-xs cursor-pointer group"
+              >
+                <div className="p-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 group-hover:bg-cyan-500/30">
+                  <Rocket className="w-4 h-4" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-cyan-300 font-bold flex items-center space-x-1.5">
+                    <span>{language === 'vi' ? 'Phóng Tàu Từ Trái Đất' : 'Earth Launch Simulation'}</span>
+                    <span className="text-[9px] px-1.5 py-0.2 bg-cyan-500/30 text-cyan-200 rounded font-mono font-bold">3D</span>
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    {language === 'vi' ? 'Khoang lái 3D & đo đạc viễn trắc' : '3D Cockpit & orbital telemetry'}
+                  </div>
+                </div>
+              </button>
+
+              <div className="h-px bg-white/10 my-1.5" />
+
+              {/* 2. Free Flight Mode */}
+              <button
+                onClick={() => {
+                  setIsSpacecraftOpen(false);
+                  handleFlightClick();
+                }}
+                className={`w-full text-left px-3.5 py-2 hover:bg-white/10 flex items-center space-x-2.5 text-xs cursor-pointer group ${
+                  cameraMode === 'FREE_FLIGHT' ? 'bg-emerald-500/20 text-emerald-300' : ''
+                }`}
+              >
+                <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 group-hover:bg-emerald-500/30">
+                  <Navigation className="w-4 h-4" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-emerald-300 font-bold">
+                    {language === 'vi' ? 'Chế Độ Bay Tự Do (W/A/S/D)' : 'Free Flight Mode (WASD)'}
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    {language === 'vi' ? 'Lái phi thuyền tự do trong hệ mặt trời' : 'Pilot freely across the solar system'}
+                  </div>
+                </div>
+              </button>
+
+              <div className="h-px bg-white/10 my-1.5" />
+
+              <div className="px-3.5 py-1 text-[10px] font-mono text-slate-400 uppercase tracking-wider">
+                {language === 'vi' ? 'Tàu Vũ Trụ & Vệ Tinh' : 'Spacecraft & Probes'}
+              </div>
+
+              {/* 3. ISS */}
+              <button
+                onClick={() => handleSpacecraftSelect('iss')}
+                className={`w-full text-left px-3.5 py-1.5 hover:bg-white/10 flex items-center justify-between text-xs cursor-pointer ${
+                  selectedTarget === 'iss' ? 'text-sky-300 font-bold bg-white/5' : 'text-slate-200'
+                }`}
+              >
+                <div>
+                  <span className="font-semibold">{language === 'vi' ? 'Trạm Vũ Trụ ISS' : 'ISS Space Station'}</span>
+                  <div className="text-[10px] text-slate-400">{language === 'vi' ? 'Quỹ đạo Trái Đất (400 km)' : 'Low Earth Orbit (400 km)'}</div>
+                </div>
+                <span className="text-[10px] text-sky-400/80 font-mono">LEO</span>
+              </button>
+
+              {/* 4. JWST */}
+              <button
+                onClick={() => handleSpacecraftSelect('jwst')}
+                className={`w-full text-left px-3.5 py-1.5 hover:bg-white/10 flex items-center justify-between text-xs cursor-pointer ${
+                  selectedTarget === 'jwst' ? 'text-amber-300 font-bold bg-white/5' : 'text-slate-200'
+                }`}
+              >
+                <div>
+                  <span className="font-semibold">{language === 'vi' ? 'Kính Viễn Vọng James Webb' : 'James Webb (JWST)'}</span>
+                  <div className="text-[10px] text-slate-400">{language === 'vi' ? 'Điểm cân bằng L2 (1.5M km)' : 'Sun-Earth L2 Halo Orbit'}</div>
+                </div>
+                <span className="text-[10px] text-amber-400/80 font-mono">L2</span>
+              </button>
+
+              {/* 5. Voyager 1 & 2 */}
+              <button
+                onClick={() => handleSpacecraftSelect('voyager1')}
+                className={`w-full text-left px-3.5 py-1.5 hover:bg-white/10 flex items-center justify-between text-xs cursor-pointer ${
+                  selectedTarget === 'voyager1' ? 'text-indigo-300 font-bold bg-white/5' : 'text-slate-200'
+                }`}
+              >
+                <div>
+                  <span className="font-semibold">Voyager 1</span>
+                  <div className="text-[10px] text-slate-400">{language === 'vi' ? 'Biên giới nhật quyển (163 AU)' : 'Heliopause boundary (163 AU)'}</div>
+                </div>
+                <span className="text-[10px] text-indigo-400/80 font-mono">163 AU</span>
+              </button>
+
+              <button
+                onClick={() => handleSpacecraftSelect('voyager2')}
+                className={`w-full text-left px-3.5 py-1.5 hover:bg-white/10 flex items-center justify-between text-xs cursor-pointer ${
+                  selectedTarget === 'voyager2' ? 'text-indigo-300 font-bold bg-white/5' : 'text-slate-200'
+                }`}
+              >
+                <div>
+                  <span className="font-semibold">Voyager 2</span>
+                  <div className="text-[10px] text-slate-400">{language === 'vi' ? 'Không gian liên sao (136 AU)' : 'Interstellar space (136 AU)'}</div>
+                </div>
+                <span className="text-[10px] text-indigo-400/80 font-mono">136 AU</span>
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Tour */}
         <button

@@ -1,7 +1,17 @@
-import React, { Component, ErrorInfo, ReactNode, Suspense, useEffect } from 'react';
+import React, { Component, ErrorInfo, ReactNode, Suspense, useEffect, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
+
+import { SimulationManager } from '@/simulation/core/SimulationManager';
+import { SimulationEventBus } from '@/simulation/core/SimulationEventBus';
+import { ScenarioType } from '@/simulation/core/types';
+import { LaunchScene } from '@/simulation/launch/LaunchScene';
+import { CockpitHUD } from '@/simulation/launch/CockpitHUD';
+import { EarthHistoryScene } from '@/simulation/earth/EarthHistoryScene';
+import { EarthTimelineHUD } from '@/simulation/earth/EarthTimelineHUD';
+import { CosmicEventScene } from '@/simulation/cosmic/CosmicEventScene';
+import { CosmicTimelineHUD } from '@/simulation/cosmic/CosmicTimelineHUD';
 
 import { useAppStore } from '@/stores/useAppStore';
 import { CameraController } from '@/engine/camera/CameraController';
@@ -138,6 +148,16 @@ const UniverseScene: React.FC = () => {
     setInExoSystem(true);
   };
 
+  const [activeScenario, setActiveScenario] = useState<ScenarioType>(
+    SimulationManager.getInstance().getActiveScenario()
+  );
+
+  useEffect(() => {
+    return SimulationEventBus.getInstance().on('simulation:scenario_change', (sc) => {
+      setActiveScenario(sc);
+    });
+  }, []);
+
   if (compareMode) {
     return <CompareScene />;
   }
@@ -154,8 +174,13 @@ const UniverseScene: React.FC = () => {
       {/* 3. Miller's Ocean World Exosystem through Wormhole */}
       <MillersPlanetScene visible={inExoSystem} onExit={() => setInExoSystem(false)} />
 
-      {/* 4. Primary Solar System Scene */}
-      <group visible={!isGalaxy && activeSurface === 'none' && !inExoSystem}>
+      {/* 4. Simulation Scenarios */}
+      {activeScenario === 'earth_launch' && <LaunchScene />}
+      {activeScenario === 'earth_history' && <EarthHistoryScene />}
+      {activeScenario === 'cosmic_history' && <CosmicEventScene />}
+
+      {/* 5. Primary Solar System Scene */}
+      <group visible={activeScenario === 'none' && !isGalaxy && activeSurface === 'none' && !inExoSystem}>
         <SolarSystemScene
           onSelectPlanet={handleSelectPlanet}
           onFocusPlanet={handleFocusPlanet}
@@ -163,8 +188,8 @@ const UniverseScene: React.FC = () => {
         />
       </group>
 
-      {/* 5. Volumetric Milky Way Galaxy Overview */}
-      <group visible={isGalaxy && activeSurface === 'none' && !inExoSystem}>
+      {/* 6. Volumetric Milky Way Galaxy Overview */}
+      <group visible={activeScenario === 'none' && isGalaxy && activeSurface === 'none' && !inExoSystem}>
         <GalaxyScene onEnterSolarSystem={handleEnterSolarSystem} />
       </group>
     </>
@@ -193,6 +218,16 @@ export default function App() {
 
   const isTarsOpen = useAppStore((state) => state.isTarsOpen);
   const setTarsOpen = useAppStore((state) => state.setTarsOpen);
+
+  const [activeScenario, setActiveScenario] = useState<ScenarioType>(
+    SimulationManager.getInstance().getActiveScenario()
+  );
+
+  useEffect(() => {
+    return SimulationEventBus.getInstance().on('simulation:scenario_change', (sc) => {
+      setActiveScenario(sc);
+    });
+  }, []);
 
   const pm = PerformanceManager.getInstance();
   const dpr = pm.getDPR(quality);
@@ -328,13 +363,18 @@ export default function App() {
           </Suspense>
         </Canvas>
 
+        {/* Simulation Scenario HUDs */}
+        {activeScenario === 'earth_launch' && <CockpitHUD />}
+        {activeScenario === 'earth_history' && <EarthTimelineHUD />}
+        {activeScenario === 'cosmic_history' && <CosmicTimelineHUD />}
+
         {/* User Interface HUD Layer */}
-        {!photoMode && !cinemaMode && activeSurface === 'none' && !inExoSystem && <SuperNav />}
-        {!photoMode && !cinemaMode && activeSurface === 'none' && !inExoSystem && !activeTour && <TimeControls />}
-        {!photoMode && !cinemaMode && activeSurface === 'none' && !inExoSystem && cameraMode !== 'FREE_FLIGHT' && !compareMode && <TargetHUD />}
-        {!cinemaMode && activeSurface === 'none' && !inExoSystem && <FlightHUD />}
-        {!cinemaMode && activeSurface === 'none' && !inExoSystem && <TourController />}
-        {!cinemaMode && activeSurface === 'none' && !inExoSystem && <CompareHUD />}
+        {activeScenario === 'none' && !photoMode && !cinemaMode && activeSurface === 'none' && !inExoSystem && <SuperNav />}
+        {activeScenario === 'none' && !photoMode && !cinemaMode && activeSurface === 'none' && !inExoSystem && !activeTour && <TimeControls />}
+        {activeScenario === 'none' && !photoMode && !cinemaMode && activeSurface === 'none' && !inExoSystem && cameraMode !== 'FREE_FLIGHT' && !compareMode && <TargetHUD />}
+        {activeScenario === 'none' && !cinemaMode && activeSurface === 'none' && !inExoSystem && <FlightHUD />}
+        {activeScenario === 'none' && !cinemaMode && activeSurface === 'none' && !inExoSystem && <TourController />}
+        {activeScenario === 'none' && !cinemaMode && activeSurface === 'none' && !inExoSystem && <CompareHUD />}
 
         {/* Surface Landing Telemetry HUD */}
         {activeSurface !== 'none' && (

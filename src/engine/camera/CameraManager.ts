@@ -4,6 +4,7 @@ import { CameraMode, useAppStore } from '@/stores/useAppStore';
 import { CELESTIAL_BODIES } from '@/data/celestialData';
 import { SimulationClock } from '@/engine/simulation/SimulationClock';
 import { AudioManager } from '@/engine/audio/AudioManager';
+import { SpacecraftEphemeris } from '@/engine/ephemeris/SpacecraftEphemeris';
 
 export interface CameraBookmark {
   id: string;
@@ -75,6 +76,26 @@ export class CameraManager {
 
     if (id === 'pulsar') {
       return target.set(-650, 220, -750);
+    }
+
+    if (id === 'iss') {
+      const earthPos = this.getLiveBodyPosition('earth', this.parentScratch);
+      const simTime = SimulationClock.getInstance().simulationTime;
+      return SpacecraftEphemeris.getInstance().getISSPosition(simTime, earthPos, target);
+    }
+
+    if (id === 'jwst') {
+      const earthPos = this.getLiveBodyPosition('earth', this.parentScratch);
+      const simTime = SimulationClock.getInstance().simulationTime;
+      return SpacecraftEphemeris.getInstance().getJWSTPosition(simTime, earthPos, target);
+    }
+
+    if (id === 'voyager1') {
+      return SpacecraftEphemeris.getInstance().getVoyager1Position(target);
+    }
+
+    if (id === 'voyager2') {
+      return SpacecraftEphemeris.getInstance().getVoyager2Position(target);
     }
 
     // Hierarchical Moon Position relative to parent planet
@@ -381,6 +402,26 @@ export class CameraManager {
    * Fly to specific celestial body (planet, moon, or black hole).
    */
   public focusPlanet(id: string, onComplete?: () => void): void {
+    if (id === 'iss' || id === 'jwst' || id === 'voyager1' || id === 'voyager2') {
+      this.activeFocusId = id;
+      const targetPos = this.getLiveBodyPosition(id).clone();
+      const safeDistance = id === 'iss' ? 3.2 : id === 'jwst' ? 4.5 : 9.0;
+      const destPos = new THREE.Vector3(
+        targetPos.x + safeDistance * 0.7,
+        targetPos.y + safeDistance * 0.4,
+        targetPos.z + safeDistance * 0.7
+      );
+      this.flyTo(destPos, targetPos, 2.2, () => {
+        this.targetDistance = safeDistance;
+        this.targetSpherical.radius = safeDistance;
+        this.spherical.radius = safeDistance;
+        this.state = 'ORBIT';
+        useAppStore.getState().setCameraMode('ORBIT');
+        onComplete?.();
+      });
+      return;
+    }
+
     const data = CELESTIAL_BODIES[id];
     if (!data) return;
 

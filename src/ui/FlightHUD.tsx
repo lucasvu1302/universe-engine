@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Compass, Gauge } from 'lucide-react';
+import { Compass, Gauge, X } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { CameraManager } from '@/engine/camera/CameraManager';
 import { getLocalizedBodyData } from '@/data/celestialData';
@@ -41,8 +41,8 @@ export const FlightHUD: React.FC = () => {
   return (
     <div className="fixed inset-0 pointer-events-none z-30 flex flex-col justify-between p-6">
       {/* Flight Mode Header Warning / Status */}
-      <div className="flex justify-center">
-        <div className="glass-panel px-4 py-1.5 rounded-full flex items-center space-x-2 text-emerald-400 border border-emerald-500/30">
+      <div className="flex justify-center mt-12 sm:mt-14">
+        <div className="glass-panel px-4 py-1.5 rounded-full flex items-center space-x-2.5 text-emerald-400 border border-emerald-500/40 bg-slate-950/80 backdrop-blur-md shadow-2xl pointer-events-auto">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
           <span className="text-xs font-mono font-semibold tracking-widest uppercase">
             {t('flight.title')}
@@ -50,6 +50,13 @@ export const FlightHUD: React.FC = () => {
           <span className="text-[10px] text-slate-400 bg-white/10 px-2 py-0.5 rounded">
             {t('cinema.pressEsc')}
           </span>
+          <button
+            onClick={() => setCameraMode('ORBIT')}
+            className="hover:text-white text-slate-400 transition-colors cursor-pointer p-0.5 ml-1"
+            title={t('cinema.pressEsc')}
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 

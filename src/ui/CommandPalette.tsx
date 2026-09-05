@@ -6,6 +6,7 @@ import { CameraManager } from '@/engine/camera/CameraManager';
 import { AudioManager } from '@/engine/audio/AudioManager';
 import { CinematicDirector } from '@/engine/camera/CinematicDirector';
 import { HarmonicesMundiSynth } from '@/engine/audio/HarmonicesMundiSynth';
+import { SimulationManager } from '@/simulation/core/SimulationManager';
 import { useTranslation } from '@/i18n';
 
 export const CommandPalette: React.FC = () => {
@@ -47,6 +48,36 @@ export const CommandPalette: React.FC = () => {
         action: () => {
           setCameraMode('GALAXY');
           CameraManager.getInstance().flyToGalaxyView();
+        }
+      },
+      {
+        id: 'earth-launch',
+        title: language === 'vi' ? 'Mô Phỏng Phóng Tàu Từ Trái Đất (3D Cockpit)' : 'Earth Launch Simulation (3D Cockpit)',
+        category: language === 'vi' ? 'Mô Phỏng' : 'Simulation',
+        icon: <Rocket className="w-4 h-4 text-cyan-400" />,
+        action: () => {
+          SimulationManager.getInstance().startScenario('earth_launch');
+          setIsOpen(false);
+        }
+      },
+      {
+        id: 'earth-history',
+        title: language === 'vi' ? 'Dòng Thời Gian Lịch Sử Trái Đất (-4.54 Tỷ Năm)' : 'Earth Geological History Timeline (-4.54 Ga)',
+        category: language === 'vi' ? 'Mô Phỏng' : 'Simulation',
+        icon: <Globe2 className="w-4 h-4 text-emerald-400" />,
+        action: () => {
+          SimulationManager.getInstance().startScenario('earth_history');
+          setIsOpen(false);
+        }
+      },
+      {
+        id: 'cosmic-history',
+        title: language === 'vi' ? 'Sự Kiện Vũ Trụ: Big Bang, Sao & Siêu Tân Tinh' : 'Cosmic Events: Big Bang & Supernova',
+        category: language === 'vi' ? 'Mô Phỏng' : 'Simulation',
+        icon: <Sparkles className="w-4 h-4 text-purple-400" />,
+        action: () => {
+          SimulationManager.getInstance().startScenario('cosmic_history');
+          setIsOpen(false);
         }
       },
       {
