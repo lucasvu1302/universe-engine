@@ -1,11 +1,11 @@
-varying vec3 vNormal;
-varying vec3 vPosition;
 varying vec3 vWorldPosition;
+varying vec3 vNormal;
+varying vec3 vLocalPosition;
 varying vec2 vUv;
 
 void main() {
+  vLocalPosition = position;
   vNormal = normalize(mat3(modelMatrix) * normal);
-  vPosition = position;
   vUv = uv;
   
   vec4 worldPos = modelMatrix * vec4(position, 1.0);
