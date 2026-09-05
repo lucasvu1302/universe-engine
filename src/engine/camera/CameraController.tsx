@@ -12,6 +12,7 @@ export const CameraController: React.FC = () => {
 
   const cameraMode = useAppStore((state) => state.cameraMode);
   const isDragging = useRef(false);
+  const isPanning = useRef(false);
   const prevPointer = useRef({ x: 0, y: 0 });
   const touchDistance = useRef<number | null>(null);
 
@@ -29,6 +30,7 @@ export const CameraController: React.FC = () => {
 
     const onPointerDown = (e: PointerEvent) => {
       isDragging.current = true;
+      isPanning.current = e.button === 2 || e.button === 1 || e.shiftKey;
       prevPointer.current = { x: e.clientX, y: e.clientY };
     };
 
@@ -40,13 +42,22 @@ export const CameraController: React.FC = () => {
       prevPointer.current = { x: e.clientX, y: e.clientY };
 
       if (camManager.state === 'ORBIT' || camManager.state === 'GALAXY') {
-        const rotSpeed = 0.0045;
-        camManager.rotateOrbit(deltaX * rotSpeed, deltaY * rotSpeed);
+        if (isPanning.current) {
+          camManager.panOrbit(deltaX, deltaY);
+        } else {
+          const rotSpeed = 0.0045;
+          camManager.rotateOrbit(deltaX * rotSpeed, deltaY * rotSpeed);
+        }
       }
     };
 
     const onPointerUp = () => {
       isDragging.current = false;
+      isPanning.current = false;
+    };
+
+    const onContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
     };
 
     // Smooth exponential wheel zoom
@@ -79,6 +90,7 @@ export const CameraController: React.FC = () => {
     dom.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
+    dom.addEventListener('contextmenu', onContextMenu);
     dom.addEventListener('wheel', onWheel, { passive: false });
     dom.addEventListener('touchmove', onTouchMove, { passive: true });
     dom.addEventListener('touchend', onTouchEnd);
@@ -87,6 +99,7 @@ export const CameraController: React.FC = () => {
       dom.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
+      dom.removeEventListener('contextmenu', onContextMenu);
       dom.removeEventListener('wheel', onWheel);
       dom.removeEventListener('touchmove', onTouchMove);
       dom.removeEventListener('touchend', onTouchEnd);
@@ -96,15 +109,32 @@ export const CameraController: React.FC = () => {
   // Frame Loop logic
   useFrame((_, delta) => {
     if (camManager.state === 'ORBIT' || camManager.state === 'GALAXY') {
+      // Arrow keys camera movement support
+      const up = input.isKeyPressed('ArrowUp');
+      const down = input.isKeyPressed('ArrowDown');
+      const left = input.isKeyPressed('ArrowLeft');
+      const right = input.isKeyPressed('ArrowRight');
+
+      if (up || down || left || right) {
+        const panSpeed = delta * 420;
+        let panX = 0;
+        let panY = 0;
+        if (left) panX += panSpeed;
+        if (right) panX -= panSpeed;
+        if (up) panY += panSpeed;
+        if (down) panY -= panSpeed;
+        camManager.panOrbit(panX, panY);
+      }
+
       camManager.updateOrbit(delta);
     } else if (camManager.state === 'FREE_FLIGHT') {
       camManager.updateFreeFlight(
         delta,
         {
-          forward: input.isKeyPressed('w') || input.isKeyPressed('KeyW') || input.isKeyPressed('ArrowUp'),
-          backward: input.isKeyPressed('s') || input.isKeyPressed('KeyS') || input.isKeyPressed('ArrowDown'),
-          left: input.isKeyPressed('a') || input.isKeyPressed('KeyA') || input.isKeyPressed('ArrowLeft'),
-          right: input.isKeyPressed('d') || input.isKeyPressed('KeyD') || input.isKeyPressed('ArrowRight'),
+          forward: input.isKeyPressed('w') || input.isKeyPressed('KeyW'),
+          backward: input.isKeyPressed('s') || input.isKeyPressed('KeyS'),
+          left: input.isKeyPressed('a') || input.isKeyPressed('KeyA'),
+          right: input.isKeyPressed('d') || input.isKeyPressed('KeyD'),
           up: input.isKeyPressed('e') || input.isKeyPressed('KeyE'),
           down: input.isKeyPressed('q') || input.isKeyPressed('KeyQ'),
           boost: input.isKeyPressed('Shift') || input.isKeyPressed('ShiftLeft'),

@@ -6,8 +6,6 @@ import { useAppStore } from '@/stores/useAppStore';
 
 import blackholeVert from '@/shaders/blackhole/blackhole.vert.glsl';
 import blackholeFrag from '@/shaders/blackhole/blackhole.frag.glsl';
-import blackholeLensingVert from '@/shaders/blackhole/blackholeLensing.vert.glsl';
-import blackholeLensingFrag from '@/shaders/blackhole/blackholeLensing.frag.glsl';
 
 interface BlackHoleProps {
   onSelect?: (id: string) => void;
@@ -16,9 +14,7 @@ interface BlackHoleProps {
 
 export const BlackHole: React.FC<BlackHoleProps> = ({ onSelect, onFocus }) => {
   const groupRef = useRef<THREE.Group>(null);
-  const diskMatRef = useRef<THREE.ShaderMaterial>(null);
-  const lensingMatRef = useRef<THREE.ShaderMaterial>(null);
-  const lensingMeshRef = useRef<THREE.Mesh>(null);
+  const volumeMatRef = useRef<THREE.ShaderMaterial>(null);
 
   const data = CELESTIAL_BODIES.blackhole;
   const setHoveredId = useAppStore((state) => state.setHoveredId);
@@ -28,41 +24,37 @@ export const BlackHole: React.FC<BlackHoleProps> = ({ onSelect, onFocus }) => {
   // Position in deep space (cosmic anomaly far beyond Pluto)
   const position: [number, number, number] = [0, 180, -1200];
 
-  const diskUniforms = useMemo(
+  const scratchCamPos = useMemo(() => new THREE.Vector3(), []);
+
+  const volumeUniforms = useMemo(
     () => ({
       uTime: { value: 0 },
-      uCenter: { value: new THREE.Vector3(...position) }
-    }),
-    []
-  );
-
-  const lensingUniforms = useMemo(
-    () => ({
-      uTime: { value: 0 }
+      uLocalCamPos: { value: new THREE.Vector3(0, 30, 120) }
     }),
     []
   );
 
   useFrame((state, delta) => {
-    if (diskMatRef.current) {
-      diskMatRef.current.uniforms.uTime.value += delta;
-    }
-    if (lensingMatRef.current) {
-      lensingMatRef.current.uniforms.uTime.value += delta;
-    }
-    // Lensing halo dynamically billboards to face camera, ensuring seamless 360° perspective
-    if (lensingMeshRef.current) {
-      lensingMeshRef.current.quaternion.copy(state.camera.quaternion);
+    if (groupRef.current && volumeMatRef.current) {
+      volumeMatRef.current.uniforms.uTime.value += delta;
+      scratchCamPos.copy(state.camera.position);
+      groupRef.current.worldToLocal(scratchCamPos);
+      volumeMatRef.current.uniforms.uLocalCamPos.value.copy(scratchCamPos);
     }
   });
 
   return (
-    <group ref={groupRef} position={position}>
-      {/* 1. Event Horizon: Absolute Light Absorbing Black Sphere */}
+    <group
+      ref={groupRef}
+      position={position}
+      rotation={[0.26, 0.12, 0.04]}
+    >
+      {/* 1. Interactive Click & Hover Target Sphere */}
       <mesh
         onClick={(e) => {
           e.stopPropagation();
           onSelect?.('blackhole');
+          onFocus?.('blackhole');
         }}
         onDoubleClick={(e) => {
           e.stopPropagation();
@@ -78,41 +70,25 @@ export const BlackHole: React.FC<BlackHoleProps> = ({ onSelect, onFocus }) => {
           document.body.style.cursor = 'auto';
         }}
       >
-        <sphereGeometry args={[data.visualRadius * 0.36, 64, 64]} />
-        <meshBasicMaterial color="#000000" />
+        <sphereGeometry args={[18.0, 32, 32]} />
+        <meshBasicMaterial visible={false} />
       </mesh>
 
-      {/* 2. Primary Relativistic Accretion Disk (Equatorial Plane) */}
-      <mesh rotation={[Math.PI / 2.3, 0.1, 0.35]}>
-        <planeGeometry args={[data.visualRadius * 3.4, data.visualRadius * 3.4]} />
+      {/* 2. Unified Relativistic Schwarzschild Geodesic Raymarching Volume */}
+      <mesh>
+        <sphereGeometry args={[65.0, 64, 64]} />
         <shaderMaterial
-          ref={diskMatRef}
+          ref={volumeMatRef}
           vertexShader={blackholeVert}
           fragmentShader={blackholeFrag}
-          uniforms={diskUniforms}
+          uniforms={volumeUniforms}
           transparent
           side={THREE.DoubleSide}
           depthWrite={false}
-          blending={THREE.AdditiveBlending}
         />
       </mesh>
 
-      {/* 3. Einstein Gravitational Lensing Halo (Dynamically billboarded to face camera) */}
-      <mesh ref={lensingMeshRef}>
-        <planeGeometry args={[data.visualRadius * 2.8, data.visualRadius * 2.8]} />
-        <shaderMaterial
-          ref={lensingMatRef}
-          vertexShader={blackholeLensingVert}
-          fragmentShader={blackholeLensingFrag}
-          uniforms={lensingUniforms}
-          transparent
-          side={THREE.DoubleSide}
-          depthWrite={false}
-          blending={THREE.AdditiveBlending}
-        />
-      </mesh>
-
-      {/* 4. Delicate Telemetry Reticle when Selected */}
+      {/* 3. Delicate Telemetry Reticle when Selected */}
       {isSelected && (
         <mesh rotation={[Math.PI / 2, 0, 0]}>
           <ringGeometry

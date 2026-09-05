@@ -112,6 +112,9 @@ export class CameraManager {
    * Adaptive distance boundaries based on current focused object.
    */
   public getAdaptiveMinDistance(): number {
+    const store = useAppStore.getState();
+    if (store.activeSurface !== 'none') return 2.0;
+    if (store.inExoSystem) return 5.0;
     if (this.state === 'GALAXY') return 80;
     if (this.activeFocusId === 'blackhole') return 35;
     if (this.activeFocusId === 'pulsar') return 15;
@@ -122,6 +125,9 @@ export class CameraManager {
   }
 
   public getAdaptiveMaxDistance(): number {
+    const store = useAppStore.getState();
+    if (store.activeSurface !== 'none') return 48.0;
+    if (store.inExoSystem) return 140.0;
     if (this.state === 'GALAXY') return 1200;
     if (this.activeFocusId === 'blackhole') return 600;
     if (this.activeFocusId === 'pulsar') return 350;
@@ -141,6 +147,89 @@ export class CameraManager {
     this.targetSpherical.phi -= deltaPhi;
 
     this.targetSpherical.phi = Math.max(0.01, Math.min(Math.PI - 0.01, this.targetSpherical.phi));
+  }
+
+  /**
+   * Free Camera Pan (Translate Target in Camera View Plane)
+   */
+  public panOrbit(deltaX: number, deltaY: number): void {
+    if (!this.camera || (this.state !== 'ORBIT' && this.state !== 'GALAXY')) return;
+
+    // Detach from rigid body tracking when manually panning
+    this.activeFocusId = null;
+
+    // Calculate pan factor proportional to current distance
+    const panFactor = this.currentDistance * 0.0018;
+
+    // Camera local axes
+    const right = new THREE.Vector3();
+    const up = new THREE.Vector3();
+    this.camera.matrix.extractBasis(right, up, this.tempVec);
+
+    right.multiplyScalar(-deltaX * panFactor);
+    up.multiplyScalar(deltaY * panFactor);
+
+    this.target.add(right).add(up);
+  }
+
+  /**
+   * Switches camera to ground surface view for Mars or Moon exploration.
+   */
+  public setSurfaceMode(surface: 'mars' | 'moon' | 'none'): void {
+    if (surface === 'none') return;
+
+    if (this.currentTween) {
+      this.currentTween.kill();
+      this.currentTween = null;
+    }
+
+    this.activeFocusId = null;
+    this.state = 'ORBIT';
+    useAppStore.getState().setCameraMode('ORBIT');
+
+    this.target.set(0, 0, 0);
+    const startPos = surface === 'mars'
+      ? new THREE.Vector3(0, 3.2, 16)
+      : new THREE.Vector3(0, 2.5, 14);
+
+    if (this.camera) {
+      this.camera.position.copy(startPos);
+      this.camera.lookAt(this.target);
+    }
+
+    this.spherical.setFromVector3(startPos);
+    this.targetSpherical.copy(this.spherical);
+    this.currentDistance = this.spherical.radius;
+    this.targetDistance = this.spherical.radius;
+  }
+
+  /**
+   * Switches camera to Miller's ocean world view through wormhole.
+   */
+  public setExoSystemMode(active: boolean): void {
+    if (!active) return;
+
+    if (this.currentTween) {
+      this.currentTween.kill();
+      this.currentTween = null;
+    }
+
+    this.activeFocusId = null;
+    this.state = 'ORBIT';
+    useAppStore.getState().setCameraMode('ORBIT');
+
+    this.target.set(0, 4, 0);
+    const startPos = new THREE.Vector3(0, 9, 32);
+
+    if (this.camera) {
+      this.camera.position.copy(startPos);
+      this.camera.lookAt(this.target);
+    }
+
+    this.spherical.setFromVector3(startPos.clone().sub(this.target));
+    this.targetSpherical.copy(this.spherical);
+    this.currentDistance = this.spherical.radius;
+    this.targetDistance = this.spherical.radius;
   }
 
   /**
@@ -408,7 +497,10 @@ export class CameraManager {
   public updateOrbit(delta: number = 0.016): void {
     if (!this.camera || (this.state !== 'ORBIT' && this.state !== 'GALAXY')) return;
 
-    if (this.activeFocusId && this.activeFocusId !== 'sun' && this.state === 'ORBIT') {
+    const isSurface = useAppStore.getState().activeSurface !== 'none';
+    const isExo = useAppStore.getState().inExoSystem;
+
+    if (!isSurface && !isExo && this.activeFocusId && this.activeFocusId !== 'sun' && this.state === 'ORBIT') {
       const livePos = this.getLiveBodyPosition(this.activeFocusId);
       this.target.copy(livePos);
     }

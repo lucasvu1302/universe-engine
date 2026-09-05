@@ -198,6 +198,20 @@ export default function App() {
   const dpr = pm.getDPR(quality);
   const enableBloom = quality !== 'LOW';
 
+  // Synchronize Camera for Planetary Surface Landings (Mars Jezero & Moon Apollo 11)
+  useEffect(() => {
+    if (activeSurface !== 'none') {
+      CameraManager.getInstance().setSurfaceMode(activeSurface as 'mars' | 'moon');
+    }
+  }, [activeSurface]);
+
+  // Synchronize Camera for Miller's Ocean World Exosystem
+  useEffect(() => {
+    if (inExoSystem) {
+      CameraManager.getInstance().setExoSystemMode(true);
+    }
+  }, [inExoSystem]);
+
   // Hook up Voice AI TARS Commands
   useEffect(() => {
     const copilot = AstroCopilot.getInstance();

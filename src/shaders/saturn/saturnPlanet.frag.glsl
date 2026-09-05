@@ -18,8 +18,9 @@ void main() {
   // Surface texture
   vec3 surfaceColor = texture2D(uSurfaceTexture, vUv).rgb;
 
-  // Day lighting
+  // Day lighting with soft terminator
   float NdotL = max(dot(norm, sunDir), 0.0);
+  float dayLighting = smoothstep(0.0, 0.25, NdotL);
 
   // Ring Shadow calculation: Ray from fragment toward Sun intersecting the ring plane
   float denom = dot(sunDir, uRingNormal);
@@ -32,17 +33,39 @@ void main() {
       vec3 intersectPoint = vWorldPosition + sunDir * t;
       float r = length(intersectPoint - uPlanetCenter);
       if (r >= uRingInnerRadius && r <= uRingOuterRadius) {
-        // In the shadow of the rings
-        ringShadow = 0.28;
+        float normR = (r - uRingInnerRadius) / max(0.001, (uRingOuterRadius - uRingInnerRadius));
+        
+        // Multi-tier ring shadow density based on Cassini structure
+        if (normR >= 0.72 && normR <= 0.77) {
+          // Cassini Division allows sunlight to stream through
+          ringShadow = 0.88;
+        } else if (normR > 0.905 && normR < 0.925) {
+          // Encke Gap
+          ringShadow = 0.82;
+        } else if (normR >= 0.38 && normR < 0.72) {
+          // Ring B casts dense dark shadow
+          ringShadow = 0.18;
+        } else if (normR >= 0.77 && normR <= 0.96) {
+          // Ring A casts medium shadow
+          ringShadow = 0.35;
+        } else if (normR >= 0.15 && normR < 0.38) {
+          // Ring C casts soft translucent shadow
+          ringShadow = 0.58;
+        } else {
+          ringShadow = 0.85;
+        }
       }
     }
   }
 
-  // Limb darkening of the gas giant
+  // Atmospheric limb brightening & darkening
   vec3 viewDir = normalize(cameraPosition - vWorldPosition);
-  float limb = pow(max(dot(norm, viewDir), 0.0), 0.4);
+  float limb = pow(max(dot(norm, viewDir), 0.0), 0.38);
 
-  vec3 finalColor = surfaceColor * (NdotL * ringShadow * limb + 0.08);
+  // Subtle golden atmospheric haze
+  vec3 atmosphericHaze = vec3(0.9, 0.78, 0.55) * pow(1.0 - max(dot(norm, viewDir), 0.0), 3.0) * 0.35;
+
+  vec3 finalColor = surfaceColor * (dayLighting * ringShadow * limb + 0.06) + atmosphericHaze * dayLighting;
 
   gl_FragColor = vec4(finalColor, 1.0);
 }

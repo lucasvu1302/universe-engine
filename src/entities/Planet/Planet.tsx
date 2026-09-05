@@ -109,7 +109,9 @@ export const Planet: React.FC<PlanetProps> = ({
       uRingTexture: { value: saturnRingsMap },
       uSunPosition: { value: new THREE.Vector3(0, 0, 0) },
       uPlanetCenter: { value: new THREE.Vector3() },
-      uPlanetRadius: { value: data.visualRadius }
+      uPlanetRadius: { value: data.visualRadius },
+      uInnerRadius: { value: data.rings.innerRadius },
+      uOuterRadius: { value: data.rings.outerRadius }
     };
   }, [data.rings, saturnRingsMap, data.visualRadius]);
 
@@ -184,6 +186,7 @@ export const Planet: React.FC<PlanetProps> = ({
               onClick={(e) => {
                 e.stopPropagation();
                 onSelect?.(data.id);
+                onFocus?.(data.id);
               }}
               onDoubleClick={(e) => {
                 e.stopPropagation();
@@ -214,6 +217,7 @@ export const Planet: React.FC<PlanetProps> = ({
               onClick={(e) => {
                 e.stopPropagation();
                 onSelect?.(data.id);
+                onFocus?.(data.id);
               }}
               onDoubleClick={(e) => {
                 e.stopPropagation();
@@ -244,6 +248,7 @@ export const Planet: React.FC<PlanetProps> = ({
               onClick={(e) => {
                 e.stopPropagation();
                 onSelect?.(data.id);
+                onFocus?.(data.id);
               }}
               onDoubleClick={(e) => {
                 e.stopPropagation();
