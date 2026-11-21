@@ -1,0 +1,22 @@
+# Hardened static SPA deployment on lucasvu-labs-vps (127.0.0.1:18210 -> container 8080).
+# No secrets or env files are needed or stored on the VPS.
+services:
+  universe-engine:
+    image: ghcr.io/lucasvu1302/universe-engine:latest
+    container_name: universe-engine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18210:8080"
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
