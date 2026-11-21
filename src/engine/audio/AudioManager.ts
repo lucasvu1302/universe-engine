@@ -282,6 +282,104 @@ export class AudioManager {
     }
   }
 
+  /**
+   * Synthesizes an archetype-matched procedural audio cue for live planetary surface events.
+   * Always silent/safe when soundEnabled is false or AudioContext is unavailable.
+   */
+  public playPlanetaryEventCue(archetype: string): void {
+    if (!useAppStore.getState().soundEnabled || !this.ctx || !this.masterGain) return;
+    try {
+      this.ensureContextRunning();
+      const now = this.ctx.currentTime;
+
+      const osc = this.ctx.createOscillator();
+      const filter = this.ctx.createBiquadFilter();
+      const gain = this.ctx.createGain();
+
+      if (archetype === 'lightning_storm') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(980, now);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.24);
+        filter.type = 'highpass';
+        filter.frequency.setValueAtTime(650, now);
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.exponentialRampToValueAtTime(0.22, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start(now);
+        osc.stop(now + 0.3);
+        return;
+      }
+
+      if (
+        archetype === 'volcanic_plume' ||
+        archetype === 'impact_flash' ||
+        archetype === 'thermal_fissure' ||
+        archetype === 'solar_flare_loop'
+      ) {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(128, now);
+        osc.frequency.exponentialRampToValueAtTime(38, now + 0.65);
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(420, now);
+        filter.frequency.exponentialRampToValueAtTime(110, now + 0.65);
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.exponentialRampToValueAtTime(0.26, now + 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.68);
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start(now);
+        osc.stop(now + 0.7);
+        return;
+      }
+
+      if (
+        archetype === 'polar_aurora' ||
+        archetype === 'diamond_shimmer' ||
+        archetype === 'cryo_geyser' ||
+        archetype === 'ice_cloud_veil'
+      ) {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(528, now);
+        osc.frequency.exponentialRampToValueAtTime(792, now + 0.55);
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(840, now);
+        filter.Q.setValueAtTime(3.0, now);
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.exponentialRampToValueAtTime(0.16, now + 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.62);
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start(now);
+        osc.stop(now + 0.65);
+        return;
+      }
+
+      // Cyclones, dust storms, hexagon jetstream, sodium tail & ring spokes: resonant wind sweep
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(175, now);
+      osc.frequency.exponentialRampToValueAtTime(92, now + 0.58);
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(640, now);
+      filter.frequency.exponentialRampToValueAtTime(240, now + 0.58);
+      filter.Q.setValueAtTime(2.2, now);
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.exponentialRampToValueAtTime(0.2, now + 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(now);
+      osc.stop(now + 0.62);
+    } catch {
+      // Headless or suspended AudioContext safe no-op
+    }
+  }
+
   public updateSoundState(enabled: boolean): void {
     if (enabled) {
       if (!this.isInitialized) {

@@ -32,6 +32,12 @@ export type DysonMode = 'dyson_swarm' | 'oneill_cylinder';
 export type RelativityTab = 'dilation_lensing' | 'bh_dive';
 export type MegaHubCategory = 'all' | 'physics' | 'surfaces' | 'planets' | 'deep_space' | 'tools';
 
+export interface PlanetaryEventBurst {
+  eventId: string;
+  nonce: number;
+  triggeredAt: number;
+}
+
 export interface SavedCameraBookmark {
   id: string;
   name: string;
@@ -190,6 +196,9 @@ export interface AppState {
   activeSurface: ActiveSurface;
   reEntryActive: boolean;
 
+  // Immersive Planetary Event Surface Stage (SPEC-010)
+  activeEventSurfaceId: string | null;
+
   // Exosystem & Wormhole (Phase 3)
   inExoSystem: boolean;
 
@@ -263,6 +272,12 @@ export interface AppState {
   // AI TARS Copilot (Phase 4)
   isTarsOpen: boolean;
 
+  // Live Planetary Surface & Atmospheric Events (SPEC-009)
+  planetaryEventsEnabled: boolean;
+  planetaryEventIntensity: number;
+  selectedPlanetaryEventId: string | null;
+  planetaryEventBurst: PlanetaryEventBurst | null;
+
   // Actions
   setCameraMode: (mode: CameraMode) => void;
   setTargetId: (id: string | null) => void;
@@ -314,6 +329,7 @@ export interface AppState {
 
   setActiveSurface: (surf: ActiveSurface) => void;
   setReEntryActive: (active: boolean) => void;
+  setActiveEventSurfaceId: (id: string | null) => void;
   setInExoSystem: (inExo: boolean) => void;
   setSandboxOpen: (open: boolean) => void;
   setActiveMeteor: (active: boolean) => void;
@@ -380,6 +396,12 @@ export interface AppState {
   setKesslerCascadeLevel: (level: number) => void;
   setKesslerTriggered: (triggered: boolean) => void;
   setKesslerPlaying: (playing: boolean) => void;
+
+  // Live Planetary Surface & Atmospheric Events Actions
+  setPlanetaryEventsEnabled: (enabled: boolean) => void;
+  setPlanetaryEventIntensity: (intensity: number) => void;
+  setSelectedPlanetaryEventId: (eventId: string | null) => void;
+  triggerPlanetaryEventBurst: (eventId: string) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -423,6 +445,7 @@ export const useAppStore = create<AppState>((set) => ({
 
   activeSurface: 'none',
   reEntryActive: false,
+  activeEventSurfaceId: null,
   inExoSystem: false,
   activeCosmicLab: 'none',
   solarStormActive: false,
@@ -486,6 +509,10 @@ export const useAppStore = create<AppState>((set) => ({
   activeTidal: false,
   activeSupernova: false,
   isTarsOpen: false,
+  planetaryEventsEnabled: true,
+  planetaryEventIntensity: 1.0,
+  selectedPlanetaryEventId: null,
+  planetaryEventBurst: null,
 
   setCameraMode: (mode) => set({ cameraMode: mode }),
   setTargetId: (id) => set({ targetId: id }),
@@ -559,6 +586,7 @@ export const useAppStore = create<AppState>((set) => ({
 
   setActiveSurface: (surf) => set({ activeSurface: surf }),
   setReEntryActive: (active) => set({ reEntryActive: active }),
+  setActiveEventSurfaceId: (id) => set({ activeEventSurfaceId: id }),
   setInExoSystem: (inExo) => set({ inExoSystem: inExo }),
   setSandboxOpen: (open) => set({ isSandboxOpen: open }),
   setActiveMeteor: (active) => set({ activeMeteor: active }),
@@ -668,4 +696,20 @@ export const useAppStore = create<AppState>((set) => ({
     set({ kesslerCascadeLevel: Number.isFinite(level) ? Math.max(0, Math.min(1, level)) : 0.28 }),
   setKesslerTriggered: (triggered) => set({ kesslerTriggered: triggered }),
   setKesslerPlaying: (playing) => set({ kesslerPlaying: playing }),
+  setPlanetaryEventsEnabled: (enabled) => set({ planetaryEventsEnabled: enabled }),
+  setPlanetaryEventIntensity: (intensity) =>
+    set({
+      planetaryEventIntensity: Number.isFinite(intensity)
+        ? Math.max(0.6, Math.min(1.6, intensity))
+        : 1.0,
+    }),
+  setSelectedPlanetaryEventId: (eventId) => set({ selectedPlanetaryEventId: eventId }),
+  triggerPlanetaryEventBurst: (eventId) =>
+    set((state) => ({
+      planetaryEventBurst: {
+        eventId,
+        nonce: (state.planetaryEventBurst?.nonce ?? 0) + 1,
+        triggeredAt: typeof performance !== 'undefined' ? performance.now() : Date.now(),
+      },
+    })),
 }));

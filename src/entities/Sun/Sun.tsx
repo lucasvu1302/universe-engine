@@ -8,12 +8,15 @@ import prominenceFrag from '@/shaders/sun/prominence.frag.glsl';
 import coronaVert from '@/shaders/sun/corona.vert.glsl';
 import coronaFrag from '@/shaders/sun/corona.frag.glsl';
 import { CELESTIAL_BODIES } from '@/data/celestialData';
+import { SimulationClock } from '@/engine/simulation/SimulationClock';
+import { PlanetaryEventsLayer } from '@/entities/Phenomena/PlanetaryEventsLayer';
 import { useAppStore } from '@/stores/useAppStore';
 
 interface SunProps {
   onSelect?: () => void;
   radiusOverride?: number;
   omitLights?: boolean;
+  hideEvents?: boolean;
 }
 
 const NOOP_RAYCAST: THREE.Object3D['raycast'] = () => {};
@@ -21,7 +24,8 @@ const NOOP_RAYCAST: THREE.Object3D['raycast'] = () => {};
 export const Sun: React.FC<SunProps> = ({
   onSelect,
   radiusOverride,
-  omitLights = false
+  omitLights = false,
+  hideEvents = false
 }) => {
   const photosphereMeshRef = useRef<THREE.Mesh>(null);
   const prominenceMeshRef = useRef<THREE.Mesh>(null);
@@ -86,8 +90,9 @@ export const Sun: React.FC<SunProps> = ({
     };
   }, [sphereGeo]);
 
-  useFrame((state, delta) => {
+  useFrame((state) => {
     const time = state.clock.getElapsedTime();
+    const simTime = SimulationClock.getInstance().simulationTime;
     const camPos = state.camera.position;
 
     if (photosphereMatRef.current) {
@@ -95,7 +100,10 @@ export const Sun: React.FC<SunProps> = ({
       photosphereMatRef.current.uniforms.uCameraPosition.value.copy(camPos);
     }
     if (photosphereMeshRef.current) {
-      photosphereMeshRef.current.rotation.y += delta * 0.04;
+      photosphereMeshRef.current.rotation.y = SimulationClock.calculateRotationAngle(
+        CELESTIAL_BODIES.sun.rotationSpeed,
+        simTime
+      );
     }
     if (prominenceMatRef.current) {
       prominenceMatRef.current.uniforms.uTime.value = time;
@@ -122,32 +130,38 @@ export const Sun: React.FC<SunProps> = ({
         </>
       )}
 
-      {/* 1. Photosphere Convective Body */}
-      <mesh
-        ref={photosphereMeshRef}
-        geometry={sphereGeo}
-        scale={sunRadius}
-        onClick={(e) => {
-          e.stopPropagation();
-          onSelect?.();
-        }}
-        onPointerOver={(e) => {
-          e.stopPropagation();
-          setHoveredId('sun');
-          document.body.style.cursor = 'pointer';
-        }}
-        onPointerOut={() => {
-          setHoveredId(null);
-          document.body.style.cursor = 'auto';
-        }}
-      >
-        <shaderMaterial
-          ref={photosphereMatRef}
-          vertexShader={sunVert}
-          fragmentShader={sunFrag}
-          uniforms={photosphereUniforms}
-        />
-      </mesh>
+      {/* Axial-tilt container syncing solar photosphere & live coronal events with SimulationClock */}
+      <group rotation={[THREE.MathUtils.degToRad(CELESTIAL_BODIES.sun.axialTiltDeg), 0, 0]}>
+        {/* 1. Photosphere Convective Body */}
+        <mesh
+          ref={photosphereMeshRef}
+          geometry={sphereGeo}
+          scale={sunRadius}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect?.();
+          }}
+          onPointerOver={(e) => {
+            e.stopPropagation();
+            setHoveredId('sun');
+            document.body.style.cursor = 'pointer';
+          }}
+          onPointerOut={() => {
+            setHoveredId(null);
+            document.body.style.cursor = 'auto';
+          }}
+        >
+          <shaderMaterial
+            ref={photosphereMatRef}
+            vertexShader={sunVert}
+            fragmentShader={sunFrag}
+            uniforms={photosphereUniforms}
+          />
+        </mesh>
+
+        {/* 1b. Live Solar Surface & Coronal Events (X9 Flare Loops, CME Plume, AR3664 Sunspots) */}
+        {!hideEvents && <PlanetaryEventsLayer bodyId="sun" visualRadius={sunRadius} />}
+      </group>
 
       {/* 2. Solar Prominence & Chromosphere Shell */}
       <mesh

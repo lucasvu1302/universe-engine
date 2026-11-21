@@ -1,6 +1,7 @@
 precision highp float;
 
 uniform float uTime;
+uniform float uOpacity;
 
 varying vec2 vUv;
 varying vec3 vWorldPosition;
@@ -32,6 +33,10 @@ float fbm(vec2 p) {
 }
 
 void main() {
+  if (uOpacity <= 0.001) {
+    discard;
+  }
+
   vec2 p = vUv - vec2(0.5);
   float r = length(p) * 2.0;
 
@@ -73,8 +78,8 @@ void main() {
   // Extinction from dark molecular clouds
   finalColor *= clamp(1.0 - dustLane * 0.75, 0.12, 1.0);
 
-  float alpha = clamp(bulge * 0.8 + gasClouds * 0.55 + dustLane * 0.22, 0.0, 0.92);
-  if (alpha < 0.008) {
+  float alpha = clamp(bulge * 0.8 + gasClouds * 0.55 + dustLane * 0.22, 0.0, 0.92) * uOpacity;
+  if (alpha < 0.005) {
     discard;
   }
 

@@ -99,7 +99,7 @@ export const ScaleExplorer: React.FC = () => {
     const targetStep = SCALE_STEPS[newIndex];
 
     if (targetStep.isGalaxy) {
-      setCameraMode('GALAXY');
+      CameraManager.getInstance().flyToGalaxyView();
     } else {
       setCameraMode('ORBIT');
       CameraManager.getInstance().flyTo(targetStep.camPos, targetStep.targetPos, 2.8);

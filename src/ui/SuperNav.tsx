@@ -192,13 +192,12 @@ export const SuperNav: React.FC = () => {
   const handleGalaxyClick = () => {
     audio.playUIClick();
     setOpenMenu(null);
-    if (cameraMode === 'GALAXY') {
+    if (cameraMode === 'GALAXY' || cam.isGalaxyTargetActive()) {
       ModeOrchestrator.getInstance().exitAllModes();
-      setCameraMode('ORBIT');
+      setTargetId('sun');
       cam.flyToSolarSystemOverview();
     } else {
       ModeOrchestrator.getInstance().exitAllModes();
-      setCameraMode('GALAXY');
       cam.flyToGalaxyView();
     }
   };

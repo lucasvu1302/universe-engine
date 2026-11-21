@@ -40,6 +40,7 @@ import { CommandPalette } from '@/ui/CommandPalette';
 import { DiagnosticsOverlay } from '@/ui/DiagnosticsOverlay';
 import { CinematicOverlay } from '@/ui/CinematicOverlay';
 import { SurfaceHUD } from '@/ui/SurfaceHUD';
+import { EventSurfaceHUD } from '@/ui/EventSurfaceHUD';
 import { SolarStormHUD } from '@/ui/SolarStormHUD';
 import { MissionPlannerHUD } from '@/ui/MissionPlannerHUD';
 import { EclipseHUD } from '@/ui/EclipseHUD';
@@ -70,6 +71,9 @@ const SettingsModal = React.lazy(() => import('@/ui/SettingsModal').then((m) => 
 // Standalone 3D Cosmic Labs & Outer-Moon Surfaces code-splitting (mounted inside local inner <Suspense>)
 const EuropaSurfaceScene = React.lazy(() => import('@/entities/Surfaces/EuropaSurfaceScene'));
 const TitanSurfaceScene = React.lazy(() => import('@/entities/Surfaces/TitanSurfaceScene'));
+const PlanetaryEventSurfaceScene = React.lazy(
+  () => import('@/scenes/EventSurface/PlanetaryEventSurfaceScene')
+);
 const EclipseScene = React.lazy(() => import('@/scenes/CosmicLabs/EclipseScene'));
 const BinaryBlackHoleScene = React.lazy(() => import('@/scenes/CosmicLabs/BinaryBlackHoleScene'));
 const StellarLabScene = React.lazy(() => import('@/scenes/CosmicLabs/StellarLabScene'));
@@ -189,17 +193,14 @@ const EngineLoop: React.FC = () => {
 
 // Scene Hierarchy with Zero-Unmount Smooth Transitions
 const UniverseScene: React.FC = () => {
-  const cameraMode = useAppStore((state) => state.cameraMode);
   const compareMode = useAppStore((state) => state.compareMode);
-  const setCameraMode = useAppStore((state) => state.setCameraMode);
   const setTargetId = useAppStore((state) => state.setTargetId);
   const activeSurface = useAppStore((state) => state.activeSurface);
+  const activeEventSurfaceId = useAppStore((state) => state.activeEventSurfaceId);
   const activeCosmicLab = useAppStore((state) => state.activeCosmicLab);
   const inExoSystem = useAppStore((state) => state.inExoSystem);
   const setInExoSystem = useAppStore((state) => state.setInExoSystem);
   const reEntryActive = useAppStore((state) => state.reEntryActive);
-
-  const isGalaxy = cameraMode === 'GALAXY';
 
   const handleSelectPlanet = (id: string) => {
     setTargetId(id);
@@ -217,7 +218,6 @@ const UniverseScene: React.FC = () => {
   };
 
   const handleEnterSolarSystem = () => {
-    setCameraMode('ORBIT');
     setTargetId('sun');
     CameraManager.getInstance().flyToSolarSystemOverview();
   };
@@ -254,6 +254,7 @@ const UniverseScene: React.FC = () => {
       <Suspense fallback={null}>
         {activeSurface === 'europa' && <EuropaSurfaceScene visible />}
         {activeSurface === 'titan' && <TitanSurfaceScene visible />}
+        {activeEventSurfaceId !== null && <PlanetaryEventSurfaceScene />}
 
         {/* 2b. Standalone 3D Cosmic Observatory Labs (isolated inside inner Suspense so EngineLoop/EffectComposer stay mounted) */}
         {activeCosmicLab === 'eclipse' && <EclipseScene />}
@@ -278,18 +279,20 @@ const UniverseScene: React.FC = () => {
       {activeScenario === 'earth_history' && <EarthHistoryScene />}
       {activeScenario === 'cosmic_history' && <CosmicEventScene />}
 
-      {/* 5. Primary Solar System Scene */}
-      {activeScenario === 'none' && !isGalaxy && activeSurface === 'none' && activeCosmicLab === 'none' && !inExoSystem && (
-        <SolarSystemScene
-          onSelectPlanet={handleSelectPlanet}
-          onFocusPlanet={handleFocusPlanet}
-          onEnterWormhole={handleEnterWormhole}
-        />
-      )}
-
-      {/* 6. Volumetric Milky Way Galaxy Overview */}
-      {activeScenario === 'none' && isGalaxy && activeSurface === 'none' && activeCosmicLab === 'none' && !inExoSystem && (
-        <GalaxyScene onEnterSolarSystem={handleEnterSolarSystem} />
+      {/* 5 & 6. Primary Solar System & Volumetric Milky Way Galaxy (Co-mounted for zero-unmount smooth crossfade) */}
+      {activeScenario === 'none' &&
+        activeSurface === 'none' &&
+        activeEventSurfaceId === null &&
+        activeCosmicLab === 'none' &&
+        !inExoSystem && (
+        <>
+          <SolarSystemScene
+            onSelectPlanet={handleSelectPlanet}
+            onFocusPlanet={handleFocusPlanet}
+            onEnterWormhole={handleEnterWormhole}
+          />
+          <GalaxyScene onEnterSolarSystem={handleEnterSolarSystem} />
+        </>
       )}
     </>
   );
@@ -306,6 +309,7 @@ export default function App() {
   const isTabHidden = useAppStore((state) => state.isTabHidden);
 
   const activeSurface = useAppStore((state) => state.activeSurface);
+  const activeEventSurfaceId = useAppStore((state) => state.activeEventSurfaceId);
   const activeCosmicLab = useAppStore((state) => state.activeCosmicLab);
   const solarStormActive = useAppStore((state) => state.solarStormActive);
   const missionPlannerOpen = useAppStore((state) => state.missionPlannerOpen);
@@ -373,7 +377,7 @@ export default function App() {
         store.toggleHarmonicesMundi();
       } else if (cmd.type === 'GALAXY') {
         orchestrator.exitAllModes();
-        store.setCameraMode('GALAXY');
+        cam.flyToGalaxyView();
       } else if (cmd.type === 'PULSAR') {
         orchestrator.exitAllModes();
         store.setTargetId('pulsar');
@@ -449,6 +453,10 @@ export default function App() {
           CameraManager.getInstance().setCosmicLabSubView('relativity_lab', 'dilation_lensing');
           return;
         }
+        if (s.activeEventSurfaceId !== null) {
+          ModeOrchestrator.getInstance().exitEventSurface();
+          return;
+        }
         if (s.activeCosmicLab !== 'none') {
           ModeOrchestrator.getInstance().exitCosmicLab();
           return;
@@ -512,7 +520,11 @@ export default function App() {
     ModeOrchestrator.getInstance().startSurfaceTakeoff();
   };
 
-  const isStandaloneView = activeSurface !== 'none' || activeCosmicLab !== 'none' || inExoSystem;
+  const isStandaloneView =
+    activeSurface !== 'none' ||
+    activeEventSurfaceId !== null ||
+    activeCosmicLab !== 'none' ||
+    inExoSystem;
 
   return (
     <ErrorBoundary>
@@ -545,7 +557,11 @@ export default function App() {
 
             {/* Film & Video Post-Processing Pipeline (Bypassed on LOW profile in favor of zero-FBO CSS vignette) */}
             {profile.enablePostProcessing && (
-              <EffectComposer multisampling={0}>
+              <EffectComposer
+                multisampling={
+                  profile.resolvedTier === 'HIGH' || profile.resolvedTier === 'ULTRA' ? 4 : 0
+                }
+              >
                 {profile.enableBloom && (
                   <Bloom
                     luminanceThreshold={0.78}
@@ -604,6 +620,11 @@ export default function App() {
         {/* Surface Landing Telemetry HUD (Mars, Moon, Europa & Titan) */}
         {activeSurface !== 'none' && (
           <SurfaceHUD location={activeSurface} onTakeoff={handleTakeoff} />
+        )}
+
+        {/* Immersive Planetary Event Surface Stage HUD (SPEC-010) */}
+        {activeEventSurfaceId !== null && activeScenario === 'none' && !compareMode && (
+          <EventSurfaceHUD scenarioActive={activeScenario !== 'none'} />
         )}
 
         {/* Miller's Ocean World Exoplanet HUD */}

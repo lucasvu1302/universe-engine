@@ -23,10 +23,13 @@ import {
   Satellite,
   Atom,
   Eye,
-  Globe2
+  Globe2,
+  Activity,
+  Zap
 } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { CELESTIAL_BODIES, getLocalizedBodyData } from '@/data/celestialData';
+import { getPlanetaryEvents } from '@/data/planetaryEventsData';
 import { CameraManager } from '@/engine/camera/CameraManager';
 import { CinematicDirector } from '@/engine/camera/CinematicDirector';
 import { AudioManager } from '@/engine/audio/AudioManager';
@@ -103,10 +106,20 @@ export const TargetHUD: React.FC = () => {
   const setCameraMode = useAppStore((state) => state.setCameraMode);
   const setInExoSystem = useAppStore((state) => state.setInExoSystem);
   const saveCameraBookmark = useAppStore((state) => state.saveCameraBookmark);
+  const planetaryEventsEnabled = useAppStore((state) => state.planetaryEventsEnabled);
+  const planetaryEventIntensity = useAppStore((state) => state.planetaryEventIntensity);
+  const selectedPlanetaryEventId = useAppStore((state) => state.selectedPlanetaryEventId);
+  const setPlanetaryEventsEnabled = useAppStore((state) => state.setPlanetaryEventsEnabled);
+  const setPlanetaryEventIntensity = useAppStore((state) => state.setPlanetaryEventIntensity);
+  const setSelectedPlanetaryEventId = useAppStore((state) => state.setSelectedPlanetaryEventId);
+  const triggerPlanetaryEventBurst = useAppStore((state) => state.triggerPlanetaryEventBurst);
 
   // Keep primary card anchored to selected targetId so hovering never hijacks open controls
   const activeId = targetId || hoveredId;
   const [isDossierOpen, setIsDossierOpen] = useState(false);
+  const [isEventsOpen, setIsEventsOpen] = useState<boolean>(
+    () => typeof window === 'undefined' || window.innerWidth >= 640
+  );
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [lightDelayText, setLightDelayText] = useState<string>(() =>
@@ -123,6 +136,9 @@ export const TargetHUD: React.FC = () => {
     const isConst = Boolean(activeId && activeId.startsWith('constellation_'));
     if (isConst && typeof window !== 'undefined' && window.innerWidth >= 640) {
       setIsDossierOpen(true);
+    }
+    if (typeof window !== 'undefined') {
+      setIsEventsOpen(window.innerWidth >= 640);
     }
   }, [activeId]);
 
@@ -187,6 +203,9 @@ export const TargetHUD: React.FC = () => {
   const canLandSurface =
     data.id === 'mars' || data.id === 'moon' || data.id === 'europa' || data.id === 'titan';
   const earthGravityRatio = (data.gravityMs2 / 9.81).toFixed(2);
+  const bodyEvents = getPlanetaryEvents(data.id);
+  const activeEvent =
+    bodyEvents.find((ev) => ev.id === selectedPlanetaryEventId) ?? bodyEvents[0] ?? null;
 
   return (
     <div
@@ -197,7 +216,7 @@ export const TargetHUD: React.FC = () => {
         ref={scrollRef}
         data-testid="target-hud-scroll"
         onWheel={(e) => e.stopPropagation()}
-        className={`vip-card-sheen p-3.5 sm:p-4 rounded-2xl space-y-2.5 border-t-2 max-h-[45dvh] sm:max-h-[calc(100dvh-5.5rem)] overflow-y-auto overscroll-contain touch-pan-y vip-scrollbar ${
+        className={`vip-card-sheen rounded-2xl border-t-2 max-h-[39dvh] sm:max-h-[calc(100dvh-5.25rem)] overflow-y-auto overscroll-contain touch-pan-y vip-scrollbar ${
           isBlackHole
             ? 'glass-panel border border-orange-500/40 shadow-orange-500/15 shadow-2xl'
             : isPulsar
@@ -208,126 +227,137 @@ export const TargetHUD: React.FC = () => {
         }`}
         style={{ borderTopColor: data.color }}
       >
-        {hoveredPreview && (
-          <div className="flex items-center justify-between px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-[10px] text-slate-300">
-            <span className="truncate">
-              {language === 'vi' ? 'Đang trỏ:' : 'Pointing:'}{' '}
-              <strong className="text-sky-300">{hoveredPreview.displayName}</strong>
-            </span>
-            <span className="font-mono text-slate-400 ml-2 shrink-0">{hoveredPreview.type}</span>
-          </div>
-        )}
-
-        {/* Header */}
-        <div className={`flex items-start justify-between ${isCollapsed ? '' : 'border-b border-white/10 pb-2'}`}>
-          <div className="min-w-0 pr-2">
-            <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-              <span
-                className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm"
-                style={{ backgroundColor: data.color, boxShadow: `0 0 10px ${data.color}` }}
-              />
-              <h2 className="text-sm sm:text-[15px] font-bold text-white tracking-wide leading-snug line-clamp-3">
-                {localized.displayName}
-              </h2>
-              <span
-                className={`text-[10px] px-2 py-0.5 rounded-full border uppercase tracking-wider font-mono ${
-                  isBlackHole
-                    ? 'bg-orange-500/20 text-orange-400 border-orange-500/40'
-                    : isPulsar
-                    ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
-                    : isConstellation
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-400/40'
-                    : 'bg-sky-500/20 text-sky-300 border-sky-500/30'
-                }`}
-              >
-                {localized.type}
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              {isBlackHole
-                ? t('targetHud.supermassiveSingularity')
-                : isPulsar
-                ? t('targetHud.neutronStar')
-                : isConstellation
-                ? (language === 'vi' ? data.hemisphereVi : data.hemisphereEn) || ''
-                : data.type === 'moon' && data.parentPlanetId
-                ? `${t('targetHud.naturalSatelliteOf')} ${getLocalizedBodyData(data.parentPlanetId)?.name || 'Planet'}`
-                : data.orbitalDistanceAU > 0
-                ? `${data.orbitalDistanceAU} AU (${(data.orbitalDistanceAU * 149.6).toFixed(1)}M km)`
-                : t('targetHud.solarCenter')}
-            </p>
-          </div>
-
-          <div className="flex items-center space-x-1 shrink-0">
-            <button
-              type="button"
-              data-testid="save-bookmark-btn"
-              aria-label={t('vip.saveView')}
-              onClick={handleSaveBookmark}
-              className="p-1.5 rounded-lg border bg-white/5 hover:bg-white/15 text-amber-300 border-amber-400/30 transition-all cursor-pointer"
-              title={t('vip.saveView')}
-            >
-              {justSaved ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <BookmarkPlus className="w-3.5 h-3.5" />}
-            </button>
-
-            <button
-              type="button"
-              aria-label={t('targetHud.focusTarget')}
-              onClick={handleFocus}
-              className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
-                isBlackHole
-                  ? 'bg-orange-500/20 hover:bg-orange-500/40 text-orange-300 border-orange-500/40'
-                  : isPulsar
-                  ? 'bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-300 border-cyan-500/40'
-                  : 'bg-sky-500/20 hover:bg-sky-500/40 text-sky-300 border-sky-500/30'
-              }`}
-              title={t('targetHud.focusTarget')}
-            >
-              <Crosshair className="w-3.5 h-3.5" />
-            </button>
-
-            <button
-              type="button"
-              aria-label={
-                isCollapsed
-                  ? language === 'vi'
-                    ? 'Mở rộng thẻ thông tin'
-                    : 'Expand info card'
-                  : language === 'vi'
-                  ? 'Thu gọn thẻ thông tin'
-                  : 'Minimize info card'
-              }
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              className="p-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white transition-all cursor-pointer"
-              title={
-                isCollapsed
-                  ? language === 'vi'
-                    ? 'Mở rộng thẻ thông tin'
-                    : 'Expand info card'
-                  : language === 'vi'
-                  ? 'Thu gọn thẻ thông tin'
-                  : 'Minimize info card'
-              }
-            >
-              {isCollapsed ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Live Light-Speed Telemetry Bar (Always accessible even when compact) */}
+        {/* Pinned Sticky Header (opaque obsidian glass eliminates any scrolled text bleed on Desktop & Mobile) */}
         <div
-          data-testid="light-delay-readout"
-          className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-sky-950/40 border border-sky-400/20 text-[11px]"
+          data-testid="target-hud-header"
+          className={`sticky top-0 z-10 bg-[#070d1c] shadow-[0_6px_16px_rgba(0,0,0,0.55)] px-3.5 sm:px-4 pt-3 sm:pt-3.5 space-y-1.5 ${
+            isCollapsed ? 'pb-3 sm:pb-3.5' : 'pb-2 border-b border-white/15'
+          }`}
         >
-          <span className="flex items-center space-x-1.5 text-slate-300">
-            <Radio className="w-3.5 h-3.5 text-cyan-400" />
-            <span>{t('vip.lightDelay')}:</span>
-          </span>
-          <span className="font-mono font-semibold text-cyan-300">{lightDelayText}</span>
+          {hoveredPreview && (
+            <div className="flex items-center justify-between px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-[10px] text-slate-300">
+              <span className="truncate">
+                {language === 'vi' ? 'Đang trỏ:' : 'Pointing:'}{' '}
+                <strong className="text-sky-300">{hoveredPreview.displayName}</strong>
+              </span>
+              <span className="font-mono text-slate-400 ml-2 shrink-0">{hoveredPreview.type}</span>
+            </div>
+          )}
+
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm"
+                  style={{ backgroundColor: data.color, boxShadow: `0 0 10px ${data.color}` }}
+                />
+                <h2 className="text-sm sm:text-[15px] font-bold text-white tracking-wide leading-tight truncate">
+                  {localized.displayName}
+                </h2>
+                <span
+                  className={`text-[9.5px] px-1.5 py-0.5 rounded-full border uppercase tracking-wider font-mono whitespace-nowrap shrink-0 ${
+                    isBlackHole
+                      ? 'bg-orange-500/20 text-orange-400 border-orange-500/40'
+                      : isPulsar
+                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                      : isConstellation
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-400/40'
+                      : 'bg-sky-500/20 text-sky-300 border-sky-500/30'
+                  }`}
+                >
+                  {localized.type}
+                </span>
+              </div>
+              <p className="text-[10.5px] text-slate-400 mt-0.5 truncate">
+                {isBlackHole
+                  ? t('targetHud.supermassiveSingularity')
+                  : isPulsar
+                  ? t('targetHud.neutronStar')
+                  : isConstellation
+                  ? (language === 'vi' ? data.hemisphereVi : data.hemisphereEn) || ''
+                  : data.type === 'moon' && data.parentPlanetId
+                  ? `${t('targetHud.naturalSatelliteOf')} ${getLocalizedBodyData(data.parentPlanetId)?.name || 'Planet'}`
+                  : data.orbitalDistanceAU > 0
+                  ? `${data.orbitalDistanceAU} AU (${(data.orbitalDistanceAU * 149.6).toFixed(1)}M km)`
+                  : t('targetHud.solarCenter')}
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-1 shrink-0">
+              <button
+                type="button"
+                data-testid="save-bookmark-btn"
+                aria-label={t('vip.saveView')}
+                onClick={handleSaveBookmark}
+                className="p-1.5 rounded-lg border bg-white/5 hover:bg-white/15 text-amber-300 border-amber-400/30 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70"
+                title={t('vip.saveView')}
+              >
+                {justSaved ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <BookmarkPlus className="w-3.5 h-3.5" />}
+              </button>
+
+              <button
+                type="button"
+                aria-label={t('targetHud.focusTarget')}
+                onClick={handleFocus}
+                className={`p-1.5 rounded-lg border transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 ${
+                  isBlackHole
+                    ? 'bg-orange-500/20 hover:bg-orange-500/40 text-orange-300 border-orange-500/40'
+                    : isPulsar
+                    ? 'bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-300 border-cyan-500/40'
+                    : 'bg-sky-500/20 hover:bg-sky-500/40 text-sky-300 border-sky-500/30'
+                }`}
+                title={t('targetHud.focusTarget')}
+              >
+                <Crosshair className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                type="button"
+                aria-label={
+                  isCollapsed
+                    ? language === 'vi'
+                      ? 'Mở rộng thẻ thông tin'
+                      : 'Expand info card'
+                    : language === 'vi'
+                    ? 'Thu gọn thẻ thông tin'
+                    : 'Minimize info card'
+                }
+                aria-expanded={!isCollapsed}
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className="p-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70"
+                title={
+                  isCollapsed
+                    ? language === 'vi'
+                      ? 'Mở rộng thẻ thông tin'
+                      : 'Expand info card'
+                    : language === 'vi'
+                    ? 'Thu gọn thẻ thông tin'
+                    : 'Minimize info card'
+                }
+              >
+                {isCollapsed ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Live Light-Speed Telemetry Bar (Always accessible even when collapsed) */}
+          <div
+            data-testid="light-delay-readout"
+            className="flex items-center justify-between px-2.5 py-1 rounded-xl bg-sky-950/40 border border-sky-400/20 text-[11px]"
+          >
+            <span className="flex items-center space-x-1.5 text-slate-300">
+              <Radio className="w-3.5 h-3.5 text-cyan-400" />
+              <span>{t('vip.lightDelay')}:</span>
+            </span>
+            <span className="font-mono font-semibold text-cyan-300">{lightDelayText}</span>
+          </div>
         </div>
 
         {!isCollapsed && (
-          <>
+          <div
+            data-testid="target-hud-body"
+            className="px-3.5 sm:px-4 pt-2 pb-3.5 space-y-2"
+          >
             <p className={`text-xs text-slate-300 leading-relaxed ${isConstellation ? '' : 'line-clamp-3'}`}>
               {localized.description}
             </p>
@@ -415,6 +445,10 @@ export const TargetHUD: React.FC = () => {
                     <p className="text-[10px] text-slate-400 uppercase font-mono">
                       {data.type === 'moon' || isSpacecraft
                         ? t('targetHud.orbitPeriod')
+                        : data.type === 'star'
+                        ? language === 'vi'
+                          ? 'Hành Tinh'
+                          : 'Planets'
                         : isPulsar
                         ? t('targetHud.pulsarPlanets')
                         : t('targetHud.knownMoons')}
@@ -698,7 +732,7 @@ export const TargetHUD: React.FC = () => {
             )}
 
             {data.id === 'jupiter' && (
-              <div className="grid grid-cols-1 gap-1.5">
+              <div className="grid grid-cols-2 gap-1.5 pt-0.5">
                 <button
                   type="button"
                   onClick={() => {
@@ -706,10 +740,10 @@ export const TargetHUD: React.FC = () => {
                     ModeOrchestrator.getInstance().exitAllModes();
                     CinematicDirector.getInstance().enterCinemaMode('SLINGSHOT');
                   }}
-                  className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-500 hover:from-indigo-500 hover:to-purple-400 text-white text-xs font-bold flex items-center justify-center space-x-2 shadow-lg shadow-purple-500/20 border border-purple-400/40 transition-all cursor-pointer"
+                  className="py-1.5 px-2 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-500 hover:from-indigo-500 hover:to-purple-400 text-white text-[10.5px] font-bold flex items-center justify-center space-x-1 shadow-lg shadow-purple-500/20 border border-purple-400/40 transition-all cursor-pointer"
                 >
-                  <Film className="w-3.5 h-3.5 text-purple-200" />
-                  <span>{t('vip.quickSlingshot')}</span>
+                  <Film className="w-3 h-3 text-purple-200 shrink-0" />
+                  <span className="truncate">{t('vip.quickSlingshot')}</span>
                 </button>
                 <button
                   type="button"
@@ -719,10 +753,10 @@ export const TargetHUD: React.FC = () => {
                     useAppStore.getState().setCutawayBody('jupiter');
                     ModeOrchestrator.getInstance().enterCosmicLab('planetary_cutaway');
                   }}
-                  className="w-full py-1.5 px-3 rounded-xl bg-orange-500/20 hover:bg-orange-500/35 border border-orange-400/40 text-orange-200 text-xs font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
+                  className="py-1.5 px-2 rounded-xl bg-orange-500/20 hover:bg-orange-500/35 border border-orange-400/40 text-orange-200 text-[10.5px] font-bold flex items-center justify-center space-x-1 transition-all cursor-pointer"
                 >
-                  <Layers className="w-3.5 h-3.5 shrink-0" />
-                  <span>{language === 'vi' ? 'Giải Phẫu Nội Tại Sao Mộc' : 'Jupiter Interior Cutaway'}</span>
+                  <Layers className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{language === 'vi' ? 'Nội Tại Sao Mộc' : 'Jupiter Cutaway'}</span>
                 </button>
               </div>
             )}
@@ -773,7 +807,287 @@ export const TargetHUD: React.FC = () => {
                 <span>{t('cosmic.relativityTitle')}</span>
               </button>
             )}
-          </>
+
+            {/* Live Planetary Surface & Atmospheric Events Panel (strictly below quick-action buttons) */}
+            {bodyEvents.length > 0 && activeEvent && (
+              <section
+                data-testid="planetary-events-section"
+                className="pt-1.5 border-t border-white/10 space-y-1.5"
+              >
+                <div className="flex items-center justify-between gap-1.5">
+                  <button
+                    type="button"
+                    data-testid="planetary-events-toggle"
+                    aria-expanded={isEventsOpen}
+                    aria-controls="planetary-events-panel-body"
+                    onClick={() => {
+                      AudioManager.getInstance().playUIClick();
+                      setIsEventsOpen((prev) => !prev);
+                    }}
+                    className="flex-1 min-w-0 flex items-center justify-between px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-semibold text-white transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70"
+                  >
+                    <span className="flex items-center space-x-1.5 min-w-0">
+                      <Activity className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span className="truncate">
+                        {language === 'vi' ? 'Hoạt Động Bề Mặt' : 'Live Surface Events'}
+                      </span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 shrink-0">
+                        {bodyEvents.length}
+                      </span>
+                    </span>
+                    {isEventsOpen ? (
+                      <ChevronUp className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
+                    ) : (
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    data-testid="planetary-events-active-toggle"
+                    aria-pressed={planetaryEventsEnabled}
+                    onClick={() => {
+                      AudioManager.getInstance().playUIClick();
+                      setPlanetaryEventsEnabled(!planetaryEventsEnabled);
+                    }}
+                    className={`px-2 py-1 rounded-xl text-[10px] font-bold font-mono border transition-all cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 ${
+                      planetaryEventsEnabled
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
+                        : 'bg-slate-800/70 text-slate-400 border-white/10'
+                    }`}
+                  >
+                    {planetaryEventsEnabled
+                      ? language === 'vi'
+                        ? 'BẬT'
+                        : 'ON'
+                      : language === 'vi'
+                      ? 'TẮT'
+                      : 'OFF'}
+                  </button>
+                </div>
+
+                {isEventsOpen && (
+                  <div id="planetary-events-panel-body" className="space-y-1.5">
+                    {/* Full-Width Crisp Selectable Event List with Hybrid Orbital/Surface Auto-Routing */}
+                    <div className="flex flex-col gap-1">
+                      {bodyEvents.map((ev) => {
+                        const isActive = ev.id === activeEvent.id;
+                        const isSurfaceRecommended = ev.recommendedView === 'surface';
+                        return (
+                          <button
+                            key={ev.id}
+                            type="button"
+                            data-testid={`planetary-event-chip-${ev.id}`}
+                            aria-pressed={isActive}
+                            onClick={() => {
+                              if (!useAppStore.getState().planetaryEventsEnabled) {
+                                setPlanetaryEventsEnabled(true);
+                              }
+                              setSelectedPlanetaryEventId(ev.id);
+                              if (isSurfaceRecommended) {
+                                AudioManager.getInstance().playWarpDrive();
+                                ModeOrchestrator.getInstance().enterEventSurface(ev.id);
+                              } else {
+                                AudioManager.getInstance().playUIClick();
+                                CameraManager.getInstance().focusPlanetHotspot(
+                                  data.id,
+                                  ev.latDeg,
+                                  ev.lonDeg,
+                                  {
+                                    frameMode: ev.frameMode,
+                                    superRotation: ev.superRotation,
+                                    archetype: ev.archetype,
+                                  }
+                                );
+                              }
+                            }}
+                            className={`w-full justify-between px-2 py-1 rounded-lg text-[10px] font-medium flex items-center gap-1.5 border transition-all cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 ${
+                              isActive
+                                ? 'bg-sky-500/25 text-white border-sky-400/60 shadow-sm shadow-sky-500/20'
+                                : 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/10'
+                            }`}
+                          >
+                            <span className="flex items-center space-x-1.5 min-w-0">
+                              <span
+                                className="w-1.5 h-1.5 rounded-full shrink-0"
+                                style={{
+                                  backgroundColor: ev.primaryColor,
+                                  boxShadow: `0 0 6px ${ev.primaryColor}`,
+                                }}
+                              />
+                              <span className="truncate">
+                                {language === 'vi' ? ev.titleVi : ev.titleEn}
+                              </span>
+                            </span>
+                            <span
+                              data-testid={`planetary-event-view-badge-${ev.id}`}
+                              className={`shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-semibold border whitespace-nowrap ${
+                                isSurfaceRecommended
+                                  ? 'bg-emerald-500/20 text-emerald-200 border-emerald-400/35'
+                                  : 'bg-sky-500/15 text-sky-200 border-sky-400/30'
+                              }`}
+                            >
+                              {isSurfaceRecommended
+                                ? language === 'vi'
+                                  ? 'Bề Mặt'
+                                  : 'Surface'
+                                : language === 'vi'
+                                ? 'Quỹ Đạo'
+                                : 'Orbital'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Active Event Scientific Briefing & Telemetry */}
+                    <div className="p-1.5 rounded-xl bg-black/35 border border-white/10 space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-[11px] font-bold text-white leading-snug min-w-0">
+                          {language === 'vi' ? activeEvent.titleVi : activeEvent.titleEn}
+                        </h3>
+                        <span className="text-[9.5px] font-mono text-sky-300 bg-sky-500/15 border border-sky-400/30 px-1.5 py-0.5 rounded-md shrink-0 whitespace-nowrap">
+                          {language === 'vi' ? activeEvent.metricValueVi : activeEvent.metricValueEn}
+                        </span>
+                      </div>
+                      <p className="text-[10.5px] text-slate-300 leading-snug">
+                        {language === 'vi' ? activeEvent.summaryVi : activeEvent.summaryEn}
+                      </p>
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                        <span>
+                          {language === 'vi' ? activeEvent.metricLabelVi : activeEvent.metricLabelEn}
+                        </span>
+                        <span>
+                          {`${Math.abs(activeEvent.latDeg).toFixed(0)}°${activeEvent.latDeg >= 0 ? 'N' : 'S'} · ${Math.abs(
+                            activeEvent.lonDeg
+                          ).toFixed(0)}°${activeEvent.lonDeg >= 0 ? 'E' : 'W'}`}
+                        </span>
+                      </div>
+
+                      {/* Hotspot Focus + Immediate Surge Actions */}
+                      <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+                        <button
+                          type="button"
+                          data-testid="planetary-event-focus-btn"
+                          onClick={() => {
+                            if (!useAppStore.getState().planetaryEventsEnabled) {
+                              setPlanetaryEventsEnabled(true);
+                            }
+                            setSelectedPlanetaryEventId(activeEvent.id);
+                            AudioManager.getInstance().playUIClick();
+                            CameraManager.getInstance().focusPlanetHotspot(
+                              data.id,
+                              activeEvent.latDeg,
+                              activeEvent.lonDeg,
+                              {
+                                frameMode: activeEvent.frameMode,
+                                superRotation: activeEvent.superRotation,
+                                archetype: activeEvent.archetype,
+                              }
+                            );
+                          }}
+                          className="py-1.5 px-2 rounded-lg bg-sky-500/20 hover:bg-sky-500/35 border border-sky-400/40 text-sky-200 text-[10.5px] font-bold flex items-center justify-center space-x-1 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70"
+                        >
+                          <Crosshair className="w-3 h-3 shrink-0" />
+                          <span className="truncate">
+                            {language === 'vi' ? 'Bay Tới Điểm Nóng' : 'Focus Hotspot'}
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          data-testid="planetary-event-burst-btn"
+                          onClick={() => {
+                            if (!useAppStore.getState().planetaryEventsEnabled) {
+                              setPlanetaryEventsEnabled(true);
+                            }
+                            setSelectedPlanetaryEventId(activeEvent.id);
+                            triggerPlanetaryEventBurst(activeEvent.id);
+                            AudioManager.getInstance().playPlanetaryEventCue(activeEvent.archetype);
+                            const cam = CameraManager.getInstance();
+                            if (
+                              !cam.isViewingHotspot(data.id, activeEvent.latDeg, activeEvent.lonDeg, {
+                                frameMode: activeEvent.frameMode,
+                                superRotation: activeEvent.superRotation,
+                                archetype: activeEvent.archetype,
+                              })
+                            ) {
+                              cam.focusPlanetHotspot(data.id, activeEvent.latDeg, activeEvent.lonDeg, {
+                                frameMode: activeEvent.frameMode,
+                                superRotation: activeEvent.superRotation,
+                                archetype: activeEvent.archetype,
+                              });
+                            }
+                          }}
+                          className="py-1.5 px-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/45 text-amber-200 text-[10.5px] font-bold flex items-center justify-center space-x-1 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70"
+                        >
+                          <Zap className="w-3 h-3 shrink-0" />
+                          <span className="truncate">
+                            {language === 'vi' ? 'Bùng Phát' : 'Trigger Surge'}
+                          </span>
+                        </button>
+                      </div>
+
+                      {/* Manual 3D Surface / In-Atmosphere Dive CTA (available for all 44 events) */}
+                      <button
+                        type="button"
+                        data-testid="planetary-event-dive-btn"
+                        onClick={() => {
+                          AudioManager.getInstance().playWarpDrive();
+                          ModeOrchestrator.getInstance().enterEventSurface(activeEvent.id);
+                        }}
+                        className="w-full py-1.5 px-2.5 rounded-lg bg-gradient-to-r from-emerald-600/85 via-cyan-600/85 to-sky-600/85 hover:from-emerald-500 hover:to-sky-500 border border-cyan-300/45 text-white text-[10.5px] font-bold flex items-center justify-center space-x-1.5 shadow-md shadow-cyan-500/15 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70"
+                      >
+                        <Eye className="w-3.5 h-3.5 shrink-0 text-cyan-100" />
+                        <span className="truncate">
+                          {language === 'vi'
+                            ? 'Lặn Bề Mặt 3D (Cận Cảnh)'
+                            : 'Dive Into 3D Surface Stage'}
+                        </span>
+                      </button>
+                    </div>
+
+                    {/* Intensity Preset Row */}
+                    <div className="flex items-center justify-between gap-1.5 text-[10px]">
+                      <span className="text-slate-400 font-medium shrink-0">
+                        {language === 'vi' ? 'Cường độ:' : 'Intensity:'}
+                      </span>
+                      <div className="grid grid-cols-3 gap-1 flex-1 max-w-[196px]">
+                        {(
+                          [
+                            { id: 'low', val: 0.6, vi: 'Nhẹ', en: 'Low' },
+                            { id: 'normal', val: 1.0, vi: 'Chuẩn', en: 'Std' },
+                            { id: 'extreme', val: 1.6, vi: 'Cực Đại', en: 'Max' },
+                          ] as const
+                        ).map((preset) => {
+                          const selected = Math.abs(planetaryEventIntensity - preset.val) < 0.05;
+                          return (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              data-testid={`planetary-event-intensity-${preset.id}`}
+                              aria-pressed={selected}
+                              onClick={() => {
+                                AudioManager.getInstance().playUIClick();
+                                setPlanetaryEventIntensity(preset.val);
+                              }}
+                              className={`py-1 px-1.5 rounded-md font-semibold border transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 ${
+                                selected
+                                  ? 'bg-sky-500/25 text-sky-200 border-sky-400/50'
+                                  : 'bg-white/5 hover:bg-white/10 text-slate-400 border-white/10'
+                              }`}
+                            >
+                              {language === 'vi' ? preset.vi : preset.en}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
         )}
       </div>
     </div>

@@ -68,18 +68,18 @@ export const CompareScene: React.FC = () => {
       {/* Body A on the Left */}
       <group position={[-offsetX, 0, 0]}>
         {dataA.id === 'sun' ? (
-          <Sun key="compare-a-sun" radiusOverride={dataA.visualRadius} omitLights />
+          <Sun key="compare-a-sun" radiusOverride={dataA.visualRadius} omitLights hideEvents />
         ) : (
-          <Planet key={`compare-a-${dataA.id}`} data={dataA} hideMoons sunPosition={[50, 20, 50]} />
+          <Planet key={`compare-a-${dataA.id}`} data={dataA} hideMoons hideEvents sunPosition={[50, 20, 50]} />
         )}
       </group>
 
       {/* Body B on the Right */}
       <group position={[offsetX, 0, 0]}>
         {dataB.id === 'sun' ? (
-          <Sun key="compare-b-sun" radiusOverride={dataB.visualRadius} omitLights />
+          <Sun key="compare-b-sun" radiusOverride={dataB.visualRadius} omitLights hideEvents />
         ) : (
-          <Planet key={`compare-b-${dataB.id}`} data={dataB} hideMoons sunPosition={[50, 20, 50]} />
+          <Planet key={`compare-b-${dataB.id}`} data={dataB} hideMoons hideEvents sunPosition={[50, 20, 50]} />
         )}
       </group>
     </group>

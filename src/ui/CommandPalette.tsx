@@ -98,7 +98,6 @@ export const CommandPalette: React.FC = () => {
         icon: <Compass className="w-4 h-4 text-purple-400" />,
         action: () => {
           ModeOrchestrator.getInstance().exitAllModes();
-          setCameraMode('GALAXY');
           CameraManager.getInstance().flyToGalaxyView();
         }
       },

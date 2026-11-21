@@ -1,12 +1,17 @@
 precision highp float;
 
 uniform float uTime;
+uniform float uOpacity;
 
 varying vec3 vColor;
 varying float vAlpha;
 varying vec2 vTwinkle;
 
 void main() {
+  if (uOpacity <= 0.001) {
+    discard;
+  }
+
   vec2 coord = gl_PointCoord - vec2(0.5);
   float dist = length(coord);
 
@@ -30,9 +35,9 @@ void main() {
   float twinkle = 0.88 + 0.12 * sin(uTime * vTwinkle.x + vTwinkle.y);
 
   float intensity = (core * 0.85 + corona * 0.38 + spike) * twinkle;
-  float finalAlpha = clamp(vAlpha * intensity, 0.0, 1.0);
+  float finalAlpha = clamp(vAlpha * intensity, 0.0, 1.0) * uOpacity;
 
-  if (finalAlpha < 0.008) {
+  if (finalAlpha < 0.005) {
     discard;
   }
 

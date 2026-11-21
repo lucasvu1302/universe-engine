@@ -4,6 +4,13 @@ import { CELESTIAL_BODIES } from '@/data/celestialData';
 import { SimulationClock } from '@/engine/simulation/SimulationClock';
 import { AudioManager } from '@/engine/audio/AudioManager';
 import { SpacecraftEphemeris } from '@/engine/ephemeris/SpacecraftEphemeris';
+import {
+  computeHotspotWorldNormal,
+  getPlanetaryEventById,
+  getPlanetaryEvents,
+  type PlanetaryEventArchetype,
+  type PlanetaryEventFrameMode,
+} from '@/data/planetaryEventsData';
 
 export interface CameraBookmark {
   id: string;
@@ -40,6 +47,10 @@ export class CameraManager {
   private flightTargetPitch = 0;
 
   // Unified in-frame Bezier transition & live moving-body tracking state (zero dual-rAF desync!)
+  public galaxyBlend = 0;
+  private galaxyDesired = false;
+  private transitionStartGalaxyBlend = 0;
+  private transitionTargetMode: CameraMode = 'ORBIT';
   private transitionActive = false;
   private transitionElapsed = 0;
   private transitionDuration = 2.0;
@@ -70,6 +81,26 @@ export class CameraManager {
   private readonly issTangentScratch = new THREE.Vector3();
   private readonly panRight = new THREE.Vector3();
   private readonly panUp = new THREE.Vector3();
+  private readonly hotspotNormalScratch = new THREE.Vector3();
+  private readonly hotspotTangentScratch = new THREE.Vector3();
+  private readonly hotspotUpScratch = new THREE.Vector3(0, 1, 0);
+  private readonly hotspotAltUpScratch = new THREE.Vector3(1, 0, 0);
+  private readonly hotspotSpinAxisScratch = new THREE.Vector3(0, 1, 0);
+  private activeHotspotTrack: {
+    bodyId: string;
+    frameMode: PlanetaryEventFrameMode;
+    superRotation: number;
+  } | null = null;
+  private tweenHotspot: {
+    bodyId: string;
+    latDeg: number;
+    lonDeg: number;
+    superRotation: number;
+    frameMode: PlanetaryEventFrameMode;
+    archetype?: PlanetaryEventArchetype;
+    distance: number;
+    minClearance: number;
+  } | null = null;
 
   private constructor() {}
 
@@ -177,6 +208,7 @@ export class CameraManager {
     const store = useAppStore.getState();
     if (store.activeCosmicLab === 'planetarium') return 0.5;
     if (store.activeCosmicLab !== 'none') return 5.0;
+    if (store.activeEventSurfaceId !== null) return 4.0;
     if (store.activeSurface !== 'none') return 2.0;
     if (store.inExoSystem) return 5.0;
     if (this.state === 'GALAXY') return 80;
@@ -196,6 +228,7 @@ export class CameraManager {
     const store = useAppStore.getState();
     if (store.activeCosmicLab === 'planetarium') return 3.0;
     if (store.activeCosmicLab !== 'none') return 95.0;
+    if (store.activeEventSurfaceId !== null) return 46.0;
     if (store.activeSurface !== 'none') return 48.0;
     if (store.inExoSystem) return 140.0;
     if (this.state === 'GALAXY') return 1200;
@@ -214,6 +247,9 @@ export class CameraManager {
    */
   public rotateOrbit(deltaTheta: number, deltaPhi: number): void {
     if (this.state !== 'ORBIT' && this.state !== 'GALAXY') return;
+
+    // User manually dragged the orbit camera: release automatic hotspot spin-lock immediately
+    this.activeHotspotTrack = null;
 
     this.targetSpherical.theta -= deltaTheta;
     this.targetSpherical.phi -= deltaPhi;
@@ -242,6 +278,29 @@ export class CameraManager {
     this.target.add(this.panRight).add(this.panUp);
   }
 
+  public isGalaxyTargetActive(): boolean {
+    return this.galaxyDesired;
+  }
+
+  public exitGalaxyMode(immediate = false): void {
+    this.galaxyDesired = false;
+    if (immediate) {
+      this.galaxyBlend = 0;
+      this.transitionStartGalaxyBlend = 0;
+    }
+  }
+
+  private stepGalaxyBlend(dt: number): void {
+    const target = this.galaxyDesired ? 1.0 : 0.0;
+    const diff = target - this.galaxyBlend;
+    if (Math.abs(diff) <= 0.002) {
+      this.galaxyBlend = target;
+    } else if (dt > 0) {
+      const damp = 1 - Math.exp(-8.0 * dt);
+      this.galaxyBlend += diff * damp;
+    }
+  }
+
   /**
    * Switches camera to ground surface view for Mars, Moon, Europa, or Titan exploration.
    */
@@ -249,6 +308,7 @@ export class CameraManager {
     if (surface === 'none') return;
 
     this.cancelActiveTransition();
+    this.exitGalaxyMode(true);
     this.setFov(50);
 
     this.activeFocusId = null;
@@ -299,6 +359,7 @@ export class CameraManager {
     }
 
     this.cancelActiveTransition();
+    this.exitGalaxyMode(true);
     this.activeFocusId = null;
     this.state = 'ORBIT';
     useAppStore.getState().setCameraMode('ORBIT');
@@ -406,12 +467,40 @@ export class CameraManager {
   }
 
   /**
+   * Frames the Miller's-Planet-style immersive planetary event surface stage
+   * with the hovering Ranger craft in foreground and active spectacle ahead.
+   */
+  public setEventSurfaceMode(eventId: string): void {
+    const ev = getPlanetaryEventById(eventId);
+    if (!ev) return;
+
+    this.cancelActiveTransition();
+    this.exitGalaxyMode(true);
+
+    this.activeFocusId = null;
+    this.state = 'ORBIT';
+    useAppStore.getState().setCameraMode('ORBIT');
+
+    // Pull destTarget slightly closer along identical sightline so initial radius stays inside [4.0, 46.0] (F5 fix)
+    const isAuroraSky = ev.surfaceBiome === 'polar_aurora_sky';
+    const startPos = isAuroraSky
+      ? new THREE.Vector3(0, 6.0, 25.5)
+      : new THREE.Vector3(0, 8.2, 26.5);
+    const destTarget = isAuroraSky
+      ? new THREE.Vector3(0, 10.96, -14.1)
+      : new THREE.Vector3(0, 4.9, -14.0);
+
+    this.applyImmediateOrbitPose(startPos, destTarget);
+  }
+
+  /**
    * Switches camera to Miller's ocean world view through wormhole.
    */
   public setExoSystemMode(active: boolean): void {
     if (!active) return;
 
     this.cancelActiveTransition();
+    this.exitGalaxyMode(true);
 
     this.activeFocusId = null;
     this.state = 'ORBIT';
@@ -452,6 +541,7 @@ export class CameraManager {
       return;
     }
 
+    this.exitGalaxyMode(true);
     this.state = 'ORBIT';
     useAppStore.getState().setCameraMode('ORBIT');
     this.target.set(0, 0, 0);
@@ -511,6 +601,7 @@ export class CameraManager {
     if (!this.camera || this.state !== 'FREE_FLIGHT') return;
 
     const dt = Number.isFinite(delta) && delta > 0 ? Math.min(delta, 0.05) : 0;
+    this.stepGalaxyBlend(dt);
     const lookSpeed = 0.0022;
 
     if (!this.flightModeInitialized) {
@@ -578,6 +669,8 @@ export class CameraManager {
     this.transitionActive = false;
     this.transitionOnComplete = null;
     this.tweenFocusId = null;
+    this.tweenHotspot = null;
+    this.activeHotspotTrack = null;
     this.prevHostAzimuth = null;
     this.prevSimTimeForOrbit = null;
     this.flightModeInitialized = false;
@@ -589,6 +682,7 @@ export class CameraManager {
    */
   public exitFreeFlight(): void {
     this.cancelActiveTransition();
+    this.exitGalaxyMode(false);
     this.activeFocusId = null;
     this.velocity.set(0, 0, 0);
     AudioManager.getInstance().setWarpIntensity(0.0);
@@ -656,6 +750,129 @@ export class CameraManager {
       .multiplyScalar(distance);
   }
 
+  private computeHotspotCameraOffset(
+    bodyId: string,
+    latDeg: number,
+    lonDeg: number,
+    superRotation: number,
+    frameMode: PlanetaryEventFrameMode,
+    distance: number,
+    bodyWorldPos: THREE.Vector3,
+    out: THREE.Vector3,
+    archetype?: PlanetaryEventArchetype
+  ): THREE.Vector3 {
+    const simTime = SimulationClock.getInstance().simulationTime;
+    computeHotspotWorldNormal(
+      bodyId,
+      latDeg,
+      lonDeg,
+      simTime,
+      { frameMode, superRotation, bodyWorldPos },
+      this.hotspotNormalScratch
+    );
+
+    const refUp =
+      Math.abs(this.hotspotNormalScratch.y) > 0.92 ? this.hotspotAltUpScratch : this.hotspotUpScratch;
+    this.hotspotTangentScratch.crossVectors(refUp, this.hotspotNormalScratch);
+    if (this.hotspotTangentScratch.lengthSq() > 1e-6) {
+      this.hotspotTangentScratch.normalize();
+    } else {
+      this.hotspotTangentScratch.set(1, 0, 0);
+    }
+
+    // Distinguish dramatic limb-silhouette archetypes (giant solar flare arches & sodium tail)
+    // from front-3/4 volcanic/cryo plumes so vents like Venus Maat Mons & Io Pele sit clearly on the front-left face.
+    const isGrazingLimb = archetype === 'solar_flare_loop' || archetype === 'plasma_tail';
+    const isFrontThreeQuarterPlume = archetype === 'volcanic_plume' || archetype === 'cryo_geyser';
+
+    if (isGrazingLimb) {
+      const upWeight = latDeg < 0 ? -0.22 : 0.14;
+      out
+        .copy(this.hotspotNormalScratch)
+        .multiplyScalar(0.56)
+        .addScaledVector(this.hotspotTangentScratch, 0.80)
+        .addScaledVector(refUp, upWeight)
+        .normalize()
+        .multiplyScalar(distance);
+    } else if (isFrontThreeQuarterPlume) {
+      const upWeight = latDeg < 0 ? -0.18 : 0.14;
+      out
+        .copy(this.hotspotNormalScratch)
+        .multiplyScalar(0.72)
+        .addScaledVector(this.hotspotTangentScratch, 0.66)
+        .addScaledVector(refUp, upWeight)
+        .normalize()
+        .multiplyScalar(distance);
+    } else {
+      out
+        .copy(this.hotspotNormalScratch)
+        .multiplyScalar(0.94)
+        .addScaledVector(this.hotspotTangentScratch, 0.28)
+        .addScaledVector(refUp, 0.14)
+        .normalize()
+        .multiplyScalar(distance);
+    }
+
+    // Zero-alloc anti-solar limb clearance preserved across live tween tracking (F4 fix)
+    if (bodyId !== 'sun' && bodyWorldPos.lengthSq() > 100 && out.lengthSq() > 1e-4) {
+      const antiSunCos = out.dot(bodyWorldPos) / (out.length() * bodyWorldPos.length());
+      if (antiSunCos > 0.94) {
+        out.applyAxisAngle(this.hotspotUpScratch, 0.24);
+      }
+    }
+
+    return out;
+  }
+
+  /**
+   * Returns true when the camera is already closely orbiting the specified body and facing the given hotspot
+   * within ~44° (used so "Trigger Surge" avoids jolting the camera when already framed, while auto-flying when off-angle).
+   */
+  public isViewingHotspot(
+    bodyId: string,
+    latDeg: number,
+    lonDeg: number,
+    options?: {
+      superRotation?: number;
+      frameMode?: PlanetaryEventFrameMode;
+      archetype?: PlanetaryEventArchetype;
+    }
+  ): boolean {
+    if (!this.camera || this.state !== 'ORBIT' || this.activeFocusId !== bodyId) return false;
+    const data = CELESTIAL_BODIES[bodyId];
+    if (!data) return false;
+
+    const liveTarget = this.getLiveBodyPosition(bodyId, this.orbitFocusPos);
+    this.tempVec.copy(this.camera.position).sub(liveTarget);
+    const dist = this.tempVec.length();
+    if (dist < 1e-4 || dist > Math.max(data.visualRadius * 4.6, 8.0)) return false;
+    this.tempVec.divideScalar(dist);
+
+    const simTime = SimulationClock.getInstance().simulationTime;
+    computeHotspotWorldNormal(
+      bodyId,
+      latDeg,
+      lonDeg,
+      simTime,
+      {
+        frameMode: options?.frameMode ?? 'spin',
+        superRotation: options?.superRotation ?? 1.0,
+        bodyWorldPos: liveTarget,
+      },
+      this.hotspotNormalScratch
+    );
+
+    const arch = options?.archetype;
+    const minDot =
+      arch === 'solar_flare_loop' || arch === 'plasma_tail'
+        ? 0.42
+        : arch === 'volcanic_plume' || arch === 'cryo_geyser'
+        ? 0.55
+        : 0.72;
+
+    return this.tempVec.dot(this.hotspotNormalScratch) >= minDot;
+  }
+
   /**
    * Updates the active Bezier transition against live orbital/ephemeris motion so moving targets (ISS, JWST, moons)
    * never drift out of frame while SimulationClock is running.
@@ -663,7 +880,23 @@ export class CameraManager {
   public syncLiveFocusDuringTween(progress: number): void {
     if (!this.camera || !this.tweenCurve) return;
 
-    if (this.tweenFocusId && this.tweenFocusId !== 'sun') {
+    if (this.tweenHotspot) {
+      const hs = this.tweenHotspot;
+      const liveTarget = this.getLiveBodyPosition(hs.bodyId, this.orbitFocusPos);
+      this.tweenDestTarget.copy(liveTarget);
+      this.computeHotspotCameraOffset(
+        hs.bodyId,
+        hs.latDeg,
+        hs.lonDeg,
+        hs.superRotation,
+        hs.frameMode,
+        hs.distance,
+        liveTarget,
+        this.tweenRelativeOffset,
+        hs.archetype
+      );
+      this.tweenCurve.v2.copy(liveTarget).add(this.tweenRelativeOffset);
+    } else if (this.tweenFocusId && this.tweenFocusId !== 'sun') {
       const liveTarget = this.getLiveBodyPosition(this.tweenFocusId, this.orbitFocusPos);
       this.tweenDestTarget.copy(liveTarget);
       if (this.tweenFocusId === 'iss') {
@@ -677,6 +910,27 @@ export class CameraManager {
     }
 
     this.tweenCurve.getPoint(progress, this.tempVec);
+
+    // Zero-alloc spherical clearance floor so hotspot hops never clip inside the Sun or a planet
+    if (this.tweenHotspot) {
+      const lx = this.tweenDestTarget.x;
+      const ly = this.tweenDestTarget.y;
+      const lz = this.tweenDestTarget.z;
+      const dx = this.tempVec.x - lx;
+      const dy = this.tempVec.y - ly;
+      const dz = this.tempVec.z - lz;
+      const distSq = dx * dx + dy * dy + dz * dz;
+      const minClear = this.tweenHotspot.minClearance;
+      if (distSq < minClear * minClear) {
+        if (distSq > 1e-8) {
+          const scale = minClear / Math.sqrt(distSq);
+          this.tempVec.set(lx + dx * scale, ly + dy * scale, lz + dz * scale);
+        } else {
+          this.tempVec.set(lx, ly + minClear, lz);
+        }
+      }
+    }
+
     this.camera.position.copy(this.tempVec);
 
     this.target.lerpVectors(this.tweenStartTarget, this.tweenDestTarget, progress);
@@ -696,10 +950,13 @@ export class CameraManager {
     const eased = rawT >= 1.0 ? 1.0 : rawT * rawT * rawT * (rawT * (rawT * 6.0 - 15.0) + 10.0);
 
     this.syncLiveFocusDuringTween(eased);
+    const targetGalaxyBlend = this.galaxyDesired ? 1.0 : 0.0;
+    this.galaxyBlend = THREE.MathUtils.lerp(this.transitionStartGalaxyBlend, targetGalaxyBlend, eased);
     AudioManager.getInstance().setWarpIntensity((1 - eased) * 0.7);
 
     if (rawT >= 1.0) {
       this.transitionActive = false;
+      this.galaxyBlend = targetGalaxyBlend;
       this.target.copy(this.tweenDestTarget);
       this.spherical.setFromVector3(this.tempVec.copy(this.camera.position).sub(this.target));
       this.targetSpherical.copy(this.spherical);
@@ -714,10 +971,19 @@ export class CameraManager {
         this.prevHostAzimuth = null;
       }
 
-      this.state = 'ORBIT';
-      useAppStore.getState().setCameraMode('ORBIT');
+      const arrivalMode = this.transitionTargetMode;
+      this.state = arrivalMode;
+      useAppStore.getState().setCameraMode(arrivalMode);
       AudioManager.getInstance().setWarpIntensity(0.0);
+      this.activeHotspotTrack = this.tweenHotspot
+        ? {
+            bodyId: this.tweenHotspot.bodyId,
+            frameMode: this.tweenHotspot.frameMode,
+            superRotation: this.tweenHotspot.superRotation,
+          }
+        : null;
       this.tweenFocusId = null;
+      this.tweenHotspot = null;
 
       const cb = this.transitionOnComplete;
       this.transitionOnComplete = null;
@@ -734,11 +1000,16 @@ export class CameraManager {
     duration = 2.4,
     onComplete?: () => void,
     liveFocusId: string | null = null,
-    relativeOffset?: THREE.Vector3
+    relativeOffset?: THREE.Vector3,
+    finalMode: CameraMode = 'ORBIT'
   ): void {
     if (!this.camera) return;
 
     this.cancelActiveTransition();
+
+    this.transitionTargetMode = finalMode;
+    this.galaxyDesired = finalMode === 'GALAXY';
+    this.transitionStartGalaxyBlend = this.galaxyBlend;
 
     this.state = 'TRANSITIONING';
     useAppStore.getState().setCameraMode('TRANSITIONING');
@@ -796,6 +1067,7 @@ export class CameraManager {
     }
     store.setCompareMode(false);
     store.setActiveSurface('none');
+    store.setActiveEventSurfaceId(null);
     store.setInExoSystem(false);
 
     this.activeFocusId = null;
@@ -924,6 +1196,108 @@ export class CameraManager {
   }
 
   /**
+   * Glides the observatory camera directly onto a live surface/atmospheric hotspot
+   * at (latDeg, lonDeg) on any body with planetary events, syncing live spin & axial tilt during flight.
+   */
+  public focusPlanetHotspot(
+    bodyId: string,
+    latDeg: number,
+    lonDeg: number,
+    options?: {
+      superRotation?: number;
+      frameMode?: PlanetaryEventFrameMode;
+      archetype?: PlanetaryEventArchetype;
+      distanceMultiplier?: number;
+      onComplete?: () => void;
+    }
+  ): void {
+    if (!this.camera) return;
+    if (!Number.isFinite(latDeg) || !Number.isFinite(lonDeg)) return;
+    if (getPlanetaryEvents(bodyId).length === 0) return;
+
+    const data = CELESTIAL_BODIES[bodyId];
+    if (!data) return;
+
+    this.activeFocusId = bodyId;
+    // Compute post-transition orbital floor directly so calling from GALAXY (minDist=80) never lands outside LOD cullDist
+    const minDist = bodyId === 'sun' ? 25 : Math.max(data.visualRadius * 1.6, 2.0);
+    const archetype = options?.archetype;
+    const isLimbMoon =
+      data.type === 'moon' && (archetype === 'volcanic_plume' || archetype === 'cryo_geyser');
+    const mult =
+      options?.distanceMultiplier !== undefined &&
+      Number.isFinite(options.distanceMultiplier) &&
+      options.distanceMultiplier > 0
+        ? options.distanceMultiplier
+        : isLimbMoon
+        ? 3.6
+        : 3.1;
+    const safeDistance = Math.max(data.visualRadius * mult, minDist);
+    const superRotation =
+      options?.superRotation !== undefined && Number.isFinite(options.superRotation)
+        ? options.superRotation
+        : 1.0;
+    const frameMode: PlanetaryEventFrameMode = options?.frameMode ?? 'spin';
+
+    const targetPos = this.getLiveBodyPosition(bodyId, this.orbitFocusPos).clone();
+    const relOffset = this.computeHotspotCameraOffset(
+      bodyId,
+      latDeg,
+      lonDeg,
+      superRotation,
+      frameMode,
+      safeDistance,
+      targetPos,
+      new THREE.Vector3(),
+      archetype
+    );
+    const destPos = targetPos.clone().add(relOffset);
+
+    this.flyTo(
+      destPos,
+      targetPos,
+      1.9,
+      () => {
+        this.targetDistance = safeDistance;
+        this.targetSpherical.radius = safeDistance;
+        this.spherical.radius = safeDistance;
+        options?.onComplete?.();
+      },
+      bodyId,
+      relOffset
+    );
+
+    if (this.transitionActive) {
+      // Push Bezier midpoint radially outside the body so antipodal/polar hops swing cleanly around the sphere
+      if (this.tweenCurve) {
+        const minCtrlDist = Math.max(safeDistance * 2.1, data.visualRadius * 4.2);
+        this.tempVec.copy(this.tweenCurve.v1).sub(targetPos);
+        if (this.tempVec.lengthSq() < 1e-4) {
+          this.tempVec.crossVectors(this.hotspotUpScratch, relOffset);
+          if (this.tempVec.lengthSq() < 1e-4) {
+            this.tempVec.crossVectors(this.hotspotAltUpScratch, relOffset);
+          }
+        }
+        if (this.tempVec.length() < minCtrlDist) {
+          this.tempVec.normalize().multiplyScalar(minCtrlDist);
+          this.tweenCurve.v1.copy(targetPos).add(this.tempVec);
+        }
+      }
+
+      this.tweenHotspot = {
+        bodyId,
+        latDeg,
+        lonDeg,
+        superRotation,
+        frameMode,
+        archetype,
+        distance: safeDistance,
+        minClearance: Math.max(data.visualRadius * 1.5, 2.0),
+      };
+    }
+  }
+
+  /**
    * Fly to Supermassive Black Hole ("Gargantua") in deep space.
    */
   public flyToBlackHole(onComplete?: () => void): void {
@@ -978,27 +1352,43 @@ export class CameraManager {
   }
 
   /**
-   * Fly to Galaxy overview vantage point.
+   * Fly to Galaxy overview vantage point with continuous zero-flash crossfade.
    */
   public flyToGalaxyView(onComplete?: () => void): void {
     this.activeFocusId = null;
     const galaxyPos = new THREE.Vector3(0, 260, 390);
     const galaxyTarget = new THREE.Vector3(0, 0, 0);
 
-    this.flyTo(galaxyPos, galaxyTarget, 2.0, () => {
-      this.targetDistance = 468;
-      this.targetSpherical.radius = 468;
-      this.spherical.radius = 468;
+    if (!this.camera) {
+      this.galaxyDesired = true;
+      this.galaxyBlend = 1;
       this.state = 'GALAXY';
       useAppStore.getState().setCameraMode('GALAXY');
       onComplete?.();
-    });
+      return;
+    }
+
+    this.flyTo(
+      galaxyPos,
+      galaxyTarget,
+      2.0,
+      () => {
+        this.targetDistance = 468;
+        this.targetSpherical.radius = 468;
+        this.spherical.radius = 468;
+        onComplete?.();
+      },
+      null,
+      undefined,
+      'GALAXY'
+    );
   }
 
   /**
    * Fly to side-by-side Planet Comparison perspective.
    */
   public flyToCompareView(onComplete?: () => void): void {
+    this.exitGalaxyMode(true);
     this.activeFocusId = null;
     const comparePos = new THREE.Vector3(0, 8, 55);
     const compareTarget = new THREE.Vector3(0, 0, 0);
@@ -1138,14 +1528,17 @@ export class CameraManager {
     this.flightModeInitialized = false;
     const storeState = useAppStore.getState();
     const isSurface = storeState.activeSurface !== 'none';
+    const isEventSurface = storeState.activeEventSurfaceId !== null;
     const isExo = storeState.inExoSystem;
     const isCosmicLab = storeState.activeCosmicLab !== 'none';
     const isScenario = this.activeScenario !== 'none';
     const simTime = SimulationClock.getInstance().simulationTime;
 
-    if (!isSurface && !isExo && !isCosmicLab && !isScenario && this.activeFocusId && this.activeFocusId !== 'sun' && this.state === 'ORBIT') {
-      const livePos = this.getLiveBodyPosition(this.activeFocusId, this.orbitFocusPos);
-      this.target.copy(livePos);
+    if (!isSurface && !isEventSurface && !isExo && !isCosmicLab && !isScenario && this.activeFocusId && this.state === 'ORBIT') {
+      if (this.activeFocusId !== 'sun') {
+        const livePos = this.getLiveBodyPosition(this.activeFocusId, this.orbitFocusPos);
+        this.target.copy(livePos);
+      }
 
       if (this.activeFocusId === 'iss') {
         // Exact 3D isometric co-rotation around ISS's 51.6°-inclined orbital plane axis (constant Earth clearance!)
@@ -1175,6 +1568,32 @@ export class CameraManager {
         this.prevSimTimeForOrbit = simTime;
         this.prevFocusIdForAzimuth = 'jwst';
       } else {
+        // Zero-alloc spin co-rotation when inspecting a planetary/solar surface hotspot so the event never spins away
+        if (
+          this.activeHotspotTrack &&
+          this.activeHotspotTrack.bodyId === this.activeFocusId &&
+          this.activeHotspotTrack.frameMode === 'spin' &&
+          this.prevFocusIdForAzimuth === this.activeFocusId &&
+          this.prevSimTimeForOrbit !== null
+        ) {
+          const bodyData = CELESTIAL_BODIES[this.activeFocusId];
+          const dSim = simTime - this.prevSimTimeForOrbit;
+          if (bodyData && Math.abs(dSim) > 1e-8) {
+            const dAngle = dSim * bodyData.rotationSpeed * this.activeHotspotTrack.superRotation * 0.5;
+            if (Math.abs(dAngle) > 1e-8) {
+              const tiltRad = THREE.MathUtils.degToRad(bodyData.axialTiltDeg || 0);
+              this.hotspotSpinAxisScratch.set(0, Math.cos(tiltRad), Math.sin(tiltRad)).normalize();
+              this.relCurScratch
+                .setFromSpherical(this.spherical)
+                .applyAxisAngle(this.hotspotSpinAxisScratch, dAngle);
+              this.relTgtScratch
+                .setFromSpherical(this.targetSpherical)
+                .applyAxisAngle(this.hotspotSpinAxisScratch, dAngle);
+              this.spherical.setFromVector3(this.relCurScratch);
+              this.targetSpherical.setFromVector3(this.relTgtScratch);
+            }
+          }
+        }
         this.prevHostAzimuth = null;
         this.prevSimTimeForOrbit = simTime;
         this.prevFocusIdForAzimuth = this.activeFocusId;
@@ -1193,7 +1612,10 @@ export class CameraManager {
       this.targetSpherical.theta += Math.PI * 2;
     }
 
-    const damp = 1 - Math.exp(-12 * Math.min(Math.max(delta, 0.001), 0.05));
+    const clampedDelta = Math.min(Math.max(delta, 0.001), 0.05);
+    this.stepGalaxyBlend(clampedDelta);
+
+    const damp = 1 - Math.exp(-12 * clampedDelta);
     this.spherical.theta = THREE.MathUtils.lerp(this.spherical.theta, this.targetSpherical.theta, damp);
     this.spherical.phi = THREE.MathUtils.lerp(this.spherical.phi, this.targetSpherical.phi, damp);
     this.spherical.radius = THREE.MathUtils.lerp(this.spherical.radius, this.targetSpherical.radius, damp);

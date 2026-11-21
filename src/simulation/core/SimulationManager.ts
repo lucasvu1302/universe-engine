@@ -39,6 +39,7 @@ export class SimulationManager {
       useAppStore.setState({
         activeCosmicLab: "none",
         activeSurface: "none",
+        activeEventSurfaceId: null,
         inExoSystem: false,
         compareMode: false,
         solarStormActive: false,

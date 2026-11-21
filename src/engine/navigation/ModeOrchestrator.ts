@@ -4,6 +4,7 @@ import { CinematicDirector } from '@/engine/camera/CinematicDirector';
 import { SimulationManager } from '@/simulation/core/SimulationManager';
 import { SimulationEventBus } from '@/simulation/core/SimulationEventBus';
 import { AudioManager } from '@/engine/audio/AudioManager';
+import { getPlanetaryEventById } from '@/data/planetaryEventsData';
 
 /**
  * Cross-system exclusive mode orchestrator.
@@ -58,6 +59,7 @@ export class ModeOrchestrator {
       photoMode: false,
       inExoSystem: false,
       activeSurface: 'none',
+      activeEventSurfaceId: null,
       activeCosmicLab: 'none',
       solarStormActive: false,
       missionPlannerOpen: false,
@@ -72,7 +74,9 @@ export class ModeOrchestrator {
       reEntryActive: false,
     });
 
-    CameraManager.getInstance().setFov(50);
+    const cam = CameraManager.getInstance();
+    cam.exitGalaxyMode(false);
+    cam.setFov(50);
   }
 
   public enterCosmicLab(lab: ActiveCosmicLab): void {
@@ -185,6 +189,40 @@ export class ModeOrchestrator {
       targetId: 'sun',
     });
     CameraManager.getInstance().flyToSolarSystemOverview();
+  }
+
+  public enterEventSurface(eventId: string): void {
+    const ev = getPlanetaryEventById(eventId);
+    if (!ev) return;
+
+    this.clearExclusiveSystems();
+    useAppStore.setState({
+      activeEventSurfaceId: ev.id,
+      selectedPlanetaryEventId: ev.id,
+      planetaryEventsEnabled: true,
+      targetId: ev.bodyId,
+      cameraMode: 'ORBIT',
+    });
+    CameraManager.getInstance().setEventSurfaceMode(ev.id);
+  }
+
+  public exitEventSurface(): void {
+    const activeId = useAppStore.getState().activeEventSurfaceId;
+    if (!activeId) return;
+
+    const ev = getPlanetaryEventById(activeId);
+    this.cancelPendingTakeoff();
+    useAppStore.setState({
+      activeEventSurfaceId: null,
+      cameraMode: 'ORBIT',
+    });
+    const cam = CameraManager.getInstance();
+    cam.setFov(50);
+    if (ev) {
+      cam.focusPlanet(ev.bodyId);
+    } else {
+      cam.flyToSolarSystemOverview();
+    }
   }
 
   public exitAllModes(): void {

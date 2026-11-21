@@ -44,16 +44,36 @@ export const SolarSystemScene: React.FC<SolarSystemSceneProps> = ({
   const missionPlannerOpen = useAppStore((state) => state.missionPlannerOpen);
 
   const earthPosRef = useRef(new THREE.Vector3());
+  const solarGroupRef = useRef<THREE.Group>(null);
 
   useFrame(() => {
     CameraManager.getInstance().getLiveBodyPosition('earth', earthPosRef.current);
   }, -1);
 
+  useFrame(() => {
+    const solarGroup = solarGroupRef.current;
+    if (!solarGroup) return;
+
+    const blend = CameraManager.getInstance().galaxyBlend;
+    if (blend <= 0.001) {
+      solarGroup.visible = true;
+      solarGroup.scale.setScalar(1);
+    } else if (blend >= 0.58) {
+      solarGroup.visible = false;
+    } else {
+      solarGroup.visible = true;
+      const t = blend / 0.58;
+      const s = t * t * (3 - 2 * t);
+      solarGroup.scale.setScalar(Math.max(0.015, Math.pow(1 - s, 2.2)));
+    }
+  });
+
   return (
     <group>
-      {/* 360° Volumetric Starfield with Distant Galaxies and Nebulae */}
+      {/* 360° Volumetric Starfield with Distant Galaxies and Nebulae (stays continuous across Solar System <-> Galaxy) */}
       <StarField />
 
+      <group ref={solarGroupRef}>
       {/* 3D Constellation Sky-Map & Goldilocks Habitable Zone Overlay */}
       <CelestialOverlay />
 
@@ -148,6 +168,7 @@ export const SolarSystemScene: React.FC<SolarSystemSceneProps> = ({
 
       {/* Live 3D Hohmann Transfer Orbit & Autonomous Probe Launcher */}
       {missionPlannerOpen && <HohmannMissionOverlay earthPosRef={earthPosRef} />}
+      </group>
     </group>
   );
 };

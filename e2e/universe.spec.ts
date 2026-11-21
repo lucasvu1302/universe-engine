@@ -843,10 +843,11 @@ test.describe('3D Universe Engine — Production & VIP Observatory E2E Suite', (
       await page.waitForTimeout(250);
       await page.screenshot({ path: path.join(wave2Dir, 'wave2-mega-hub.png') });
     } else {
-      // Mobile Bottom Sheet: fits 390px viewport, capture mobile screenshot, dismiss via close button AND backdrop tap
+      // Mobile Bottom Sheet: fits mobile viewport width with zero overflow, capture screenshot, dismiss via close & backdrop
       const hubBox = await megaHub.boundingBox();
       expect(hubBox).not.toBeNull();
-      expect(hubBox!.width).toBeLessThanOrEqual(392);
+      const viewportWidth = page.viewportSize()?.width ?? 393;
+      expect(hubBox!.width).toBeLessThanOrEqual(viewportWidth);
       await page.waitForTimeout(220);
       await page.screenshot({ path: path.join(wave2Dir, 'wave2-mega-hub-mobile.png') });
       await page.getByTestId('mega-hub-close-btn').click();
@@ -981,6 +982,300 @@ test.describe('3D Universe Engine — Production & VIP Observatory E2E Suite', (
       () => document.documentElement.scrollWidth - window.innerWidth
     );
     expect(overflow).toBeLessThanOrEqual(0);
+    expect(consoleErrors).toEqual([]);
+  });
+
+  test('renders live Planetary Surface Events across planets, focuses hotspots, triggers bursts & preserves mobile layout (SPEC-009)', async ({ page }, testInfo) => {
+    test.setTimeout(120000);
+    const consoleErrors: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') consoleErrors.push(msg.text());
+    });
+    page.on('pageerror', (err) => consoleErrors.push(err.message));
+
+    const shotsDir = path.resolve(process.cwd(), '../.tmp/task-report/planetary-events-shots');
+    fs.mkdirSync(shotsDir, { recursive: true });
+    const isDesktop = testInfo.project.name === 'chromium';
+    const isMobile = !isDesktop;
+    if (isDesktop) {
+      await page.setViewportSize({ width: 1440, height: 900 });
+    } else {
+      await page.setViewportSize({ width: 390, height: 844 });
+    }
+
+    await page.goto('/');
+    await expect(page.locator('main[data-cinema-ibl="ready"]')).toBeVisible({ timeout: 25000 });
+    await expect(page.getByTestId('target-hud-panel')).toBeVisible({ timeout: 20000 });
+
+    const selectPlanetFromNav = async (planetPattern: RegExp) => {
+      await page.getByTitle(/Hành Tinh|Planets/i).click();
+      await page.getByRole('button', { name: planetPattern }).first().click();
+    };
+
+    const waitCameraArrival = async () => {
+      await expect(page.locator('[data-camera-mode]')).toHaveAttribute('data-camera-mode', 'ORBIT', {
+        timeout: 18000,
+      });
+      await page.waitForTimeout(750);
+    };
+
+    const ensureEventsExpanded = async () => {
+      await expect(page.getByTestId('planetary-events-section')).toBeVisible({ timeout: 10000 });
+      const focusBtn = page.getByTestId('planetary-event-focus-btn');
+      if ((await focusBtn.count()) === 0) {
+        await page.getByTestId('planetary-events-toggle').click();
+      }
+      await expect(focusBtn).toBeVisible();
+    };
+
+    // 1. Earth (initial target): mobile starts collapsed; desktop starts expanded
+    await expect(page.getByTestId('planetary-events-section')).toBeVisible({ timeout: 10000 });
+    if (isMobile) {
+      await expect(page.getByTestId('planetary-event-focus-btn')).toHaveCount(0);
+      await page.getByTestId('planetary-events-toggle').click();
+      await expect(page.getByTestId('planetary-event-focus-btn')).toBeVisible();
+    }
+    await page.getByTestId('planetary-event-intensity-extreme').click();
+    await page.getByTestId('planetary-event-chip-earth_pacific_typhoon').click();
+    await page.getByTestId('planetary-event-focus-btn').click();
+    await waitCameraArrival();
+    await page.getByTestId('planetary-event-burst-btn').click();
+    await page.waitForTimeout(450);
+    if (isDesktop) {
+      await page.screenshot({ path: path.join(shotsDir, 'earth-surface-events.png') });
+    } else if (testInfo.project.name.toLowerCase().includes('mobile')) {
+      await page.screenshot({ path: path.join(shotsDir, 'mobile-planetary-events.png') });
+    }
+
+    // 2. Jupiter: Great Red Spot + Ammonia Superbolts + X-Ray Aurora
+    await selectPlanetFromNav(/Sao Mộc|Jupiter/i);
+    await ensureEventsExpanded();
+    await page.getByTestId('planetary-event-chip-jupiter_great_red_spot').click();
+    await page.getByTestId('planetary-event-focus-btn').click();
+    await waitCameraArrival();
+    await page.getByTestId('planetary-event-burst-btn').click();
+    await page.waitForTimeout(450);
+    if (isDesktop) {
+      await page.screenshot({ path: path.join(shotsDir, 'jupiter-surface-events.png') });
+    }
+
+    // 3. Saturn: North Polar Hexagon + Electrostatic Ring Spokes
+    await selectPlanetFromNav(/Sao Thổ|Saturn/i);
+    await ensureEventsExpanded();
+    await page.getByTestId('planetary-event-chip-saturn_north_hexagon').click();
+    await page.getByTestId('planetary-event-focus-btn').click();
+    await waitCameraArrival();
+    await page.getByTestId('planetary-event-burst-btn').click();
+    await page.waitForTimeout(450);
+    if (isDesktop) {
+      await page.screenshot({ path: path.join(shotsDir, 'saturn-hexagon-events.png') });
+    }
+
+    // 4. Mars: Hellas Dust Storm + Proton Aurora
+    await selectPlanetFromNav(/Sao Hỏa|Mars/i);
+    await ensureEventsExpanded();
+    await page.getByTestId('planetary-event-chip-mars_global_dust_storm').click();
+    await page.getByTestId('planetary-event-focus-btn').click();
+    await waitCameraArrival();
+    await page.getByTestId('planetary-event-burst-btn').click();
+    await page.waitForTimeout(450);
+    if (isDesktop) {
+      await page.screenshot({ path: path.join(shotsDir, 'mars-dust-events.png') });
+    }
+
+    // 5. Venus (direct orbital chip auto-focus on Super Vortex), Io (dive + exit to orbital plume) & Sun — Desktop visual capture
+    if (isDesktop) {
+      await selectPlanetFromNav(/Sao Kim|Venus/i);
+      await ensureEventsExpanded();
+      await waitCameraArrival();
+      await page.getByTestId('planetary-event-chip-venus_super_vortex').click();
+      await expect(page.locator('[data-camera-mode]')).toHaveAttribute('data-camera-mode', 'TRANSITIONING', {
+        timeout: 4000,
+      });
+      await waitCameraArrival();
+      await page.getByTestId('planetary-event-burst-btn').click();
+      await page.waitForTimeout(450);
+      await page.screenshot({ path: path.join(shotsDir, 'venus-maat-mons-events.png') });
+
+      await selectPlanetFromNav(/\bIo\b/i);
+      await ensureEventsExpanded();
+      await page.getByTestId('planetary-event-focus-btn').click();
+      await waitCameraArrival();
+      await page.getByTestId('planetary-event-burst-btn').click();
+      await page.waitForTimeout(450);
+      await page.screenshot({ path: path.join(shotsDir, 'io-volcano-plume.png') });
+
+      await selectPlanetFromNav(/Mặt Trời|Sun/i);
+      await ensureEventsExpanded();
+      await page.getByTestId('planetary-event-chip-sun_xclass_flare').click();
+      await waitCameraArrival();
+      await page.getByTestId('planetary-event-burst-btn').click();
+      await page.waitForTimeout(450);
+      await page.screenshot({ path: path.join(shotsDir, 'sun-flare-events.png') });
+    }
+
+    // 6. Negative check (R4.b): Black Hole (Gargantua) must NOT render planetary-events-section
+    await selectPlanetFromNav(/Gargantua|Hố Đen|Black Hole/i);
+    await expect(page.getByTestId('light-delay-readout')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('planetary-events-section')).toHaveCount(0);
+
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+    expect(consoleErrors).toEqual([]);
+  });
+
+  test('renders Hybrid Orbital + Immersive 3D Event Surface Stage across all 5 biomes on Desktop & Mobile (SPEC-010)', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(150000);
+    const consoleErrors: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') consoleErrors.push(msg.text());
+    });
+    page.on('pageerror', (err) => consoleErrors.push(err.message));
+
+    const shotsDir = path.resolve(process.cwd(), '../.tmp/task-report/event-surface-stage-shots');
+    fs.mkdirSync(shotsDir, { recursive: true });
+    const isDesktop = testInfo.project.name === 'chromium';
+
+    if (isDesktop) {
+      await page.setViewportSize({ width: 1440, height: 900 });
+    } else {
+      await page.setViewportSize({ width: 390, height: 844 });
+    }
+
+    await page.goto('/');
+    await expect(page.locator('main[data-cinema-ibl="ready"]')).toBeVisible({ timeout: 25000 });
+    await expect(page.getByTestId('target-hud-panel')).toBeVisible({ timeout: 20000 });
+
+    const selectPlanetFromNav = async (planetPattern: RegExp) => {
+      await page.getByTitle(/Hành Tinh|Planets/i).click();
+      await page.getByRole('button', { name: planetPattern }).first().click();
+    };
+
+    const ensureEventsExpanded = async () => {
+      await expect(page.getByTestId('planetary-events-section')).toBeVisible({ timeout: 10000 });
+      const diveBtn = page.getByTestId('planetary-event-dive-btn');
+      if ((await diveBtn.count()) === 0) {
+        await page.getByTestId('planetary-events-toggle').click();
+      }
+      await expect(diveBtn).toBeVisible();
+    };
+
+    // 1. Venus (Biome: volcanic_lava) -> clicking surface chip auto-dives straight into 3D Event Surface Stage
+    await selectPlanetFromNav(/Sao Kim|Venus/i);
+    await ensureEventsExpanded();
+    await expect(page.getByTestId('planetary-event-view-badge-venus_maat_mons_volcano')).toContainText(
+      /Bề Mặt|Surface/i
+    );
+    await page.getByTestId('planetary-event-chip-venus_maat_mons_volcano').click();
+    await expect(page.getByTestId('event-surface-hud')).toBeVisible({ timeout: 12000 });
+    await page.getByTestId('event-surface-burst-btn').click();
+    await page.waitForTimeout(750);
+
+    const stageOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth
+    );
+    expect(stageOverflow).toBeLessThanOrEqual(0);
+
+    if (isDesktop) {
+      await page.screenshot({ path: path.join(shotsDir, 'stage-venus-volcano.png') });
+    } else {
+      await page.screenshot({ path: path.join(shotsDir, 'stage-mobile-venus.png') });
+    }
+
+    // Switch event right inside the Surface Stage (Venus Acid Lightning in gas_giant_clouds)
+    await page.getByTestId('event-surface-switch-venus_acid_lightning').click();
+    await page.getByTestId('event-surface-intensity-extreme').click();
+    await expect(page.getByTestId('event-surface-intensity-extreme')).toHaveAttribute('aria-pressed', 'true');
+    await page.waitForTimeout(550);
+
+    // Escape exits cleanly back to Venus in orbit (not Sun overview)
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('event-surface-hud')).toHaveCount(0);
+    await expect(page.getByTestId('target-hud-panel')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('target-hud-header')).toContainText(/Sao Kim|Venus/i);
+
+    if (isDesktop) {
+      // 2. Jupiter: orbital chip focuses globe cleanly (NO auto-dive) -> then manual Lặn Bề Mặt 3D dives!
+      await selectPlanetFromNav(/Sao Mộc|Jupiter/i);
+      await ensureEventsExpanded();
+      await expect(page.getByTestId('planetary-event-view-badge-jupiter_great_red_spot')).toContainText(
+        /Quỹ Đạo|Orbital/i
+      );
+      await page.getByTestId('planetary-event-chip-jupiter_great_red_spot').click();
+      await expect(page.getByTestId('event-surface-hud')).toHaveCount(0);
+      await expect(page.locator('[data-camera-mode]')).toHaveAttribute('data-camera-mode', 'ORBIT', {
+        timeout: 18000,
+      });
+      await page.waitForTimeout(750);
+      await page.screenshot({ path: path.join(shotsDir, 'orbital-jupiter-boosted.png') });
+
+      // Manual dive into Jupiter -> switch to Ammonia Superbolts (Biome: gas_giant_clouds)
+      await page.getByTestId('planetary-event-dive-btn').click();
+      await expect(page.getByTestId('event-surface-hud')).toBeVisible({ timeout: 12000 });
+      await page.getByTestId('event-surface-switch-jupiter_ammonia_superbolts').click();
+      await page.getByTestId('event-surface-burst-btn').click();
+      await page.waitForTimeout(700);
+      await page.screenshot({ path: path.join(shotsDir, 'stage-jupiter-lightning.png') });
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('event-surface-hud')).toHaveCount(0);
+
+      // 3. Enceladus (Biome: cryo_ice_geyser + colossal ringed Saturn on horizon!)
+      await selectPlanetFromNav(/Enceladus/i);
+      await ensureEventsExpanded();
+      await page.getByTestId('planetary-event-chip-enceladus_tiger_stripes').click();
+      await expect(page.getByTestId('event-surface-hud')).toBeVisible({ timeout: 12000 });
+      await page.getByTestId('event-surface-burst-btn').click();
+      await page.waitForTimeout(750);
+      await page.screenshot({ path: path.join(shotsDir, 'stage-enceladus-geyser.png') });
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('event-surface-hud')).toHaveCount(0);
+
+      // 4. Mars Jezero Dust Devils (Biome: dust_impact_desert)
+      await selectPlanetFromNav(/Sao Hỏa|Mars/i);
+      await ensureEventsExpanded();
+      await page.getByTestId('planetary-event-chip-mars_jezero_dust_devils').click();
+      await expect(page.getByTestId('event-surface-hud')).toBeVisible({ timeout: 12000 });
+      await page.getByTestId('event-surface-burst-btn').click();
+      await page.waitForTimeout(750);
+      await page.screenshot({ path: path.join(shotsDir, 'stage-mars-dust-devil.png') });
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('event-surface-hud')).toHaveCount(0);
+
+      // 5. Neptune Diamond Rain (Archetype: diamond_shimmer in gas_giant_clouds)
+      await selectPlanetFromNav(/Sao Hải Vương|Neptune/i);
+      await ensureEventsExpanded();
+      await page.getByTestId('planetary-event-chip-neptune_diamond_rain').click();
+      await expect(page.getByTestId('event-surface-hud')).toBeVisible({ timeout: 12000 });
+      await page.getByTestId('event-surface-burst-btn').click();
+      await page.waitForTimeout(750);
+      await page.screenshot({ path: path.join(shotsDir, 'stage-neptune-diamond-rain.png') });
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('event-surface-hud')).toHaveCount(0);
+
+      // 6. Earth Polar Aurora (Biome: polar_aurora_sky reusing auroraCurtain.vert + planetaryAurora.frag)
+      await selectPlanetFromNav(/Trái Đất|Earth/i);
+      await ensureEventsExpanded();
+      await page.getByTestId('planetary-event-chip-earth_polar_aurora').click();
+      await expect(page.getByTestId('event-surface-hud')).toBeVisible({ timeout: 12000 });
+      await page.getByTestId('event-surface-intensity-extreme').click();
+      await page.getByTestId('event-surface-burst-btn').click();
+      await page.waitForTimeout(750);
+      await page.screenshot({ path: path.join(shotsDir, 'stage-earth-aurora.png') });
+
+      // Exit via HUD button back to Earth
+      await page.getByTestId('event-surface-exit-btn').click();
+      await expect(page.getByTestId('event-surface-hud')).toHaveCount(0);
+      await expect(page.getByTestId('target-hud-header')).toContainText(/Trái Đất|Earth/i);
+    }
+
+    const finalOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth
+    );
+    expect(finalOverflow).toBeLessThanOrEqual(0);
     expect(consoleErrors).toEqual([]);
   });
 });

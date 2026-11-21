@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useAppStore } from '@/stores/useAppStore';
 import { PerformanceManager } from '@/engine/performance/PerformanceManager';
+import { CameraManager } from '@/engine/camera/CameraManager';
 import galaxyVert from '@/shaders/galaxy/galaxy.vert.glsl';
 import galaxyFrag from '@/shaders/galaxy/galaxy.frag.glsl';
 import galaxyNebulaVert from '@/shaders/galaxy/galaxyNebula.vert.glsl';
@@ -12,13 +13,25 @@ interface GalaxySceneProps {
   onEnterSolarSystem?: () => void;
 }
 
+function smoothstep(edge0: number, edge1: number, x: number): number {
+  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
 export const GalaxyScene: React.FC<GalaxySceneProps> = ({ onEnterSolarSystem }) => {
   const rootGroupRef = useRef<THREE.Group>(null);
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const nebulaMatRef = useRef<THREE.ShaderMaterial>(null);
   const coreRef = useRef<THREE.Group>(null);
+  const coreInnerMatRef = useRef<THREE.MeshBasicMaterial>(null);
+  const coreOuterMatRef = useRef<THREE.MeshBasicMaterial>(null);
   const beaconRingsRef = useRef<THREE.Group>(null);
+  const solSphereMatRef = useRef<THREE.MeshBasicMaterial>(null);
+  const ring1MatRef = useRef<THREE.MeshBasicMaterial>(null);
+  const ring2MatRef = useRef<THREE.MeshBasicMaterial>(null);
+  const beamMatRef = useRef<THREE.MeshBasicMaterial>(null);
+  const warmupFramesRef = useRef(0);
 
   const quality = useAppStore((state) => state.graphicsQuality);
   const detectedGPUTier = useAppStore((state) => state.detectedGPUTier);
@@ -193,10 +206,13 @@ export const GalaxyScene: React.FC<GalaxySceneProps> = ({ onEnterSolarSystem }) 
     g.setAttribute('aColor', new THREE.BufferAttribute(col, 3));
     g.setAttribute('aScale', new THREE.BufferAttribute(scl, 1));
     g.setAttribute('aTwinkle', new THREE.BufferAttribute(twk, 2));
+    // O(1) exact bounding sphere avoids synchronous 120k-vertex scan on first visible frame
+    g.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), maxRadius + 60);
     return g;
   }, [particleCount, maxRadius]);
 
   useEffect(() => {
+    warmupFramesRef.current = 0;
     return () => {
       geometry.dispose();
     };
@@ -205,24 +221,81 @@ export const GalaxyScene: React.FC<GalaxySceneProps> = ({ onEnterSolarSystem }) 
   const starUniforms = useMemo(
     () => ({
       uTime: { value: 0 },
-      uSize: { value: 2.4 }
+      uSize: { value: 2.4 },
+      uOpacity: { value: 0 }
     }),
     []
   );
 
   const nebulaUniforms = useMemo(
     () => ({
-      uTime: { value: 0 }
+      uTime: { value: 0 },
+      uOpacity: { value: 0 }
     }),
     []
   );
 
   useFrame((_, delta) => {
+    const root = rootGroupRef.current;
+    if (!root) return;
+
+    const blend = CameraManager.getInstance().galaxyBlend;
+
+    // Silent 2-frame shader & VBO warm-up on mount (uOpacity = 0, additive blend adds zero pixels)
+    // so clicking Galaxy later has zero GLSL compile or 120k VBO upload hitch, then costs 0 draw calls while hidden.
+    if (blend <= 0.001) {
+      if (warmupFramesRef.current < 2) {
+        warmupFramesRef.current += 1;
+        root.visible = true;
+        root.scale.setScalar(0.001);
+        if (materialRef.current) materialRef.current.uniforms.uOpacity.value = 0;
+        if (nebulaMatRef.current) nebulaMatRef.current.uniforms.uOpacity.value = 0;
+        if (coreInnerMatRef.current) coreInnerMatRef.current.opacity = 0;
+        if (coreOuterMatRef.current) coreOuterMatRef.current.opacity = 0;
+        if (solSphereMatRef.current) solSphereMatRef.current.opacity = 0;
+        if (ring1MatRef.current) ring1MatRef.current.opacity = 0;
+        if (ring2MatRef.current) ring2MatRef.current.opacity = 0;
+        if (beamMatRef.current) beamMatRef.current.opacity = 0;
+      } else {
+        root.visible = false;
+      }
+      return;
+    }
+
+    warmupFramesRef.current = 2;
+    root.visible = true;
+
+    const galaxyAlpha = smoothstep(0.05, 0.85, blend);
+    const galaxyScale = 0.78 + 0.22 * smoothstep(0.05, 1.0, blend);
+    const beaconAlpha = smoothstep(0.55, 1.0, blend);
+
+    root.scale.setScalar(galaxyScale);
+
     if (materialRef.current) {
       materialRef.current.uniforms.uTime.value += delta;
+      materialRef.current.uniforms.uOpacity.value = galaxyAlpha;
     }
     if (nebulaMatRef.current) {
       nebulaMatRef.current.uniforms.uTime.value += delta;
+      nebulaMatRef.current.uniforms.uOpacity.value = galaxyAlpha;
+    }
+    if (coreInnerMatRef.current) {
+      coreInnerMatRef.current.opacity = 0.88 * galaxyAlpha;
+    }
+    if (coreOuterMatRef.current) {
+      coreOuterMatRef.current.opacity = 0.42 * galaxyAlpha;
+    }
+    if (solSphereMatRef.current) {
+      solSphereMatRef.current.opacity = beaconAlpha;
+    }
+    if (ring1MatRef.current) {
+      ring1MatRef.current.opacity = 0.7 * beaconAlpha;
+    }
+    if (ring2MatRef.current) {
+      ring2MatRef.current.opacity = 0.45 * beaconAlpha;
+    }
+    if (beamMatRef.current) {
+      beamMatRef.current.opacity = 0.5 * beaconAlpha;
     }
     if (beaconRingsRef.current) {
       beaconRingsRef.current.rotation.z += delta * 0.45;
@@ -236,7 +309,7 @@ export const GalaxyScene: React.FC<GalaxySceneProps> = ({ onEnterSolarSystem }) 
   const solPos: [number, number, number] = [115, 2, 70];
 
   return (
-    <group ref={rootGroupRef}>
+    <group ref={rootGroupRef} visible={false}>
       {/* 1. Volumetric Diffuse Interstellar Gas & Dark Dust Lanes Plane */}
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[780, 780]} />
@@ -271,18 +344,22 @@ export const GalaxyScene: React.FC<GalaxySceneProps> = ({ onEnterSolarSystem }) 
         <mesh>
           <sphereGeometry args={[14.0, 32, 32]} />
           <meshBasicMaterial
+            ref={coreInnerMatRef}
             color="#ffffff"
             transparent
-            opacity={0.88}
+            depthWrite={false}
+            opacity={0}
           />
         </mesh>
         {/* Warm Golden Corona */}
         <mesh>
           <sphereGeometry args={[28.0, 32, 32]} />
           <meshBasicMaterial
+            ref={coreOuterMatRef}
             color="#ffe082"
             transparent
-            opacity={0.42}
+            depthWrite={false}
+            opacity={0}
             side={THREE.BackSide}
           />
         </mesh>
@@ -293,10 +370,12 @@ export const GalaxyScene: React.FC<GalaxySceneProps> = ({ onEnterSolarSystem }) 
         {/* Clickable Sun Sphere */}
         <mesh
           onClick={(e) => {
+            if (CameraManager.getInstance().galaxyBlend < 0.8) return;
             e.stopPropagation();
             onEnterSolarSystem?.();
           }}
           onPointerOver={() => {
+            if (CameraManager.getInstance().galaxyBlend < 0.8) return;
             document.body.style.cursor = 'pointer';
           }}
           onPointerOut={() => {
@@ -304,7 +383,13 @@ export const GalaxyScene: React.FC<GalaxySceneProps> = ({ onEnterSolarSystem }) 
           }}
         >
           <sphereGeometry args={[3.2, 24, 24]} />
-          <meshBasicMaterial color="#38bdf8" />
+          <meshBasicMaterial
+            ref={solSphereMatRef}
+            color="#38bdf8"
+            transparent
+            depthWrite={false}
+            opacity={0}
+          />
         </mesh>
 
         {/* Pulsing Holographic Concentric Rings */}
@@ -312,18 +397,22 @@ export const GalaxyScene: React.FC<GalaxySceneProps> = ({ onEnterSolarSystem }) 
           <mesh>
             <ringGeometry args={[5.5, 6.5, 32]} />
             <meshBasicMaterial
+              ref={ring1MatRef}
               color="#38bdf8"
               transparent
-              opacity={0.7}
+              depthWrite={false}
+              opacity={0}
               side={THREE.DoubleSide}
             />
           </mesh>
           <mesh>
             <ringGeometry args={[8.0, 8.8, 32]} />
             <meshBasicMaterial
+              ref={ring2MatRef}
               color="#0284c7"
               transparent
-              opacity={0.45}
+              depthWrite={false}
+              opacity={0}
               side={THREE.DoubleSide}
             />
           </mesh>
@@ -333,9 +422,11 @@ export const GalaxyScene: React.FC<GalaxySceneProps> = ({ onEnterSolarSystem }) 
         <mesh position={[0, 18, 0]}>
           <cylinderGeometry args={[0.3, 0.3, 36, 16]} />
           <meshBasicMaterial
+            ref={beamMatRef}
             color="#38bdf8"
             transparent
-            opacity={0.5}
+            depthWrite={false}
+            opacity={0}
           />
         </mesh>
       </group>

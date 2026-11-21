@@ -7,6 +7,7 @@ import { AssetManager } from '@/engine/assets/AssetManager';
 import { PerformanceManager } from '@/engine/performance/PerformanceManager';
 import { useAppStore } from '@/stores/useAppStore';
 import { OrbitLine } from '@/entities/Orbits/OrbitLine';
+import { PlanetaryEventsLayer } from '@/entities/Phenomena/PlanetaryEventsLayer';
 
 import earthGroundVert from '@/shaders/earth/earthGround.vert.glsl';
 import earthGroundFrag from '@/shaders/earth/earthGround.frag.glsl';
@@ -23,6 +24,7 @@ interface PlanetProps {
   onFocus?: (id: string) => void;
   parentPosition?: THREE.Vector3;
   hideMoons?: boolean;
+  hideEvents?: boolean;
   sunPosition?: [number, number, number];
 }
 
@@ -130,6 +132,7 @@ export const Planet: React.FC<PlanetProps> = ({
   onFocus,
   parentPosition,
   hideMoons = false,
+  hideEvents = false,
   sunPosition = [0, 0, 0]
 }) => {
   const groupRef = useRef<THREE.Group>(null);
@@ -572,6 +575,16 @@ export const Planet: React.FC<PlanetProps> = ({
             </mesh>
           )}
 
+          {/* Live Per-Planet Surface & Atmospheric Events (curved GLSL caps, GPU ballistic plumes, polar auroras & spokes) */}
+          {!hideEvents && (
+            <PlanetaryEventsLayer
+              bodyId={data.id}
+              visualRadius={data.visualRadius}
+              ringInnerRadius={data.rings?.innerRadius}
+              ringOuterRadius={data.rings?.outerRadius}
+            />
+          )}
+
           {/* Sleek AAA Sci-Fi Holographic Targeting Reticle (Kept mounted via visible for zero allocation churn) */}
           <group ref={reticleRef} visible={isSelected} scale={data.visualRadius}>
             <mesh rotation={[Math.PI / 2, 0, 0]} raycast={NOOP_RAYCAST}>
@@ -609,6 +622,7 @@ export const Planet: React.FC<PlanetProps> = ({
               onSelect={onSelect}
               onFocus={onFocus}
               parentPosition={scratchPos}
+              hideEvents={hideEvents}
             />
           );
         })}

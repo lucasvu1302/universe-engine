@@ -13,6 +13,7 @@ export interface QualityProfile {
   asteroidCount: number;
   sphereSegments: number;
   raymarchSteps: number;
+  planetaryEventParticleScale: number;
 }
 
 export interface PerformanceMetrics {
@@ -143,6 +144,7 @@ export class PerformanceManager {
           asteroidCount: 600,
           sphereSegments: 24,
           raymarchSteps: 24,
+          planetaryEventParticleScale: 0.4,
         };
       case 'MEDIUM':
         return {
@@ -155,6 +157,7 @@ export class PerformanceManager {
           asteroidCount: 1200,
           sphereSegments: 36,
           raymarchSteps: 36,
+          planetaryEventParticleScale: 0.7,
         };
       case 'HIGH':
         return {
@@ -167,6 +170,7 @@ export class PerformanceManager {
           asteroidCount: 2000,
           sphereSegments: 48,
           raymarchSteps: 48,
+          planetaryEventParticleScale: 1.0,
         };
       case 'ULTRA':
       default:
@@ -180,6 +184,7 @@ export class PerformanceManager {
           asteroidCount: 2800,
           sphereSegments: 64,
           raymarchSteps: 56,
+          planetaryEventParticleScale: 1.25,
         };
     }
   }
