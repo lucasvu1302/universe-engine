@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import sunVert from '@/shaders/sun/sun.vert.glsl';
@@ -12,20 +12,31 @@ import { useAppStore } from '@/stores/useAppStore';
 
 interface SunProps {
   onSelect?: () => void;
+  radiusOverride?: number;
+  omitLights?: boolean;
 }
 
-export const Sun: React.FC<SunProps> = ({ onSelect }) => {
+const NOOP_RAYCAST: THREE.Object3D['raycast'] = () => {};
+
+export const Sun: React.FC<SunProps> = ({
+  onSelect,
+  radiusOverride,
+  omitLights = false
+}) => {
   const photosphereMeshRef = useRef<THREE.Mesh>(null);
+  const prominenceMeshRef = useRef<THREE.Mesh>(null);
+  const coronaMeshRef = useRef<THREE.Mesh>(null);
   const photosphereMatRef = useRef<THREE.ShaderMaterial>(null);
   const prominenceMatRef = useRef<THREE.ShaderMaterial>(null);
   const coronaMatRef = useRef<THREE.ShaderMaterial>(null);
 
   const setHoveredId = useAppStore((state) => state.setHoveredId);
-  const sunRadius = CELESTIAL_BODIES.sun.visualRadius;
-  const prominenceRadius = sunRadius * 1.28;
+  const sunRadius = radiusOverride ?? CELESTIAL_BODIES.sun.visualRadius;
+  const prominenceRadius = sunRadius * 1.24;
   const coronaRadius = sunRadius * 2.15;
 
-  // 1. Photosphere Convection & Convective Cells Uniforms
+  const sphereGeo = useMemo(() => new THREE.SphereGeometry(1, 64, 64), []);
+
   const photosphereUniforms = useMemo(
     () => ({
       uTime: { value: 0 },
@@ -36,49 +47,60 @@ export const Sun: React.FC<SunProps> = ({ onSelect }) => {
     []
   );
 
-  // 2. Solar Prominence & Coronal Loops Uniforms
   const prominenceUniforms = useMemo(
     () => ({
       uTime: { value: 0 },
       uCameraPosition: { value: new THREE.Vector3() },
-      uSunRadius: { value: sunRadius },
-      uProminenceRadius: { value: prominenceRadius }
+      uSunRadius: { value: CELESTIAL_BODIES.sun.visualRadius },
+      uProminenceRadius: { value: CELESTIAL_BODIES.sun.visualRadius * 1.24 }
     }),
-    [sunRadius, prominenceRadius]
+    []
   );
 
-  // 3. Volumetric Solar Corona & Streamers Uniforms
   const coronaUniforms = useMemo(
     () => ({
       uTime: { value: 0 },
       uCameraPosition: { value: new THREE.Vector3() },
-      uSunRadius: { value: sunRadius },
-      uCoronaRadius: { value: coronaRadius }
+      uSunRadius: { value: CELESTIAL_BODIES.sun.visualRadius },
+      uCoronaRadius: { value: CELESTIAL_BODIES.sun.visualRadius * 2.15 }
     }),
-    [sunRadius, coronaRadius]
+    []
   );
+
+  useEffect(() => {
+    prominenceUniforms.uSunRadius.value = sunRadius;
+    prominenceUniforms.uProminenceRadius.value = prominenceRadius;
+    coronaUniforms.uSunRadius.value = sunRadius;
+    coronaUniforms.uCoronaRadius.value = coronaRadius;
+  }, [sunRadius, prominenceRadius, coronaRadius, prominenceUniforms, coronaUniforms]);
+
+  useEffect(() => {
+    const pMat = photosphereMatRef.current;
+    const prMat = prominenceMatRef.current;
+    const cMat = coronaMatRef.current;
+    return () => {
+      sphereGeo.dispose();
+      pMat?.dispose();
+      prMat?.dispose();
+      cMat?.dispose();
+    };
+  }, [sphereGeo]);
 
   useFrame((state, delta) => {
     const time = state.clock.getElapsedTime();
     const camPos = state.camera.position;
 
-    // Update Photosphere
     if (photosphereMatRef.current) {
       photosphereMatRef.current.uniforms.uTime.value = time;
       photosphereMatRef.current.uniforms.uCameraPosition.value.copy(camPos);
     }
     if (photosphereMeshRef.current) {
-      // Differential solar rotation
       photosphereMeshRef.current.rotation.y += delta * 0.04;
     }
-
-    // Update Prominences
     if (prominenceMatRef.current) {
       prominenceMatRef.current.uniforms.uTime.value = time;
       prominenceMatRef.current.uniforms.uCameraPosition.value.copy(camPos);
     }
-
-    // Update Volumetric Corona
     if (coronaMatRef.current) {
       coronaMatRef.current.uniforms.uTime.value = time;
       coronaMatRef.current.uniforms.uCameraPosition.value.copy(camPos);
@@ -87,21 +109,24 @@ export const Sun: React.FC<SunProps> = ({ onSelect }) => {
 
   return (
     <group position={[0, 0, 0]}>
-      {/* Central Omnidirectional Light Source */}
-      <pointLight
-        position={[0, 0, 0]}
-        intensity={5.5}
-        distance={4500}
-        decay={0.22}
-        color="#fffaf0"
-      />
-
-      {/* Cosmic Starlight Ambient Fill */}
-      <ambientLight intensity={0.08} color="#0c1830" />
+      {!omitLights && (
+        <>
+          <pointLight
+            position={[0, 0, 0]}
+            intensity={5.5}
+            distance={4500}
+            decay={0.22}
+            color="#fffaf0"
+          />
+          <ambientLight intensity={0.08} color="#0c1830" />
+        </>
+      )}
 
       {/* 1. Photosphere Convective Body */}
       <mesh
         ref={photosphereMeshRef}
+        geometry={sphereGeo}
+        scale={sunRadius}
         onClick={(e) => {
           e.stopPropagation();
           onSelect?.();
@@ -116,7 +141,6 @@ export const Sun: React.FC<SunProps> = ({ onSelect }) => {
           document.body.style.cursor = 'auto';
         }}
       >
-        <sphereGeometry args={[sunRadius, 64, 64]} />
         <shaderMaterial
           ref={photosphereMatRef}
           vertexShader={sunVert}
@@ -125,31 +149,39 @@ export const Sun: React.FC<SunProps> = ({ onSelect }) => {
         />
       </mesh>
 
-      {/* 2. Solar Prominence & Coronal Loop Shell (Tai Lửa Mặt Trời) */}
-      <mesh raycast={() => null}>
-        <sphereGeometry args={[prominenceRadius, 64, 64]} />
+      {/* 2. Solar Prominence & Chromosphere Shell */}
+      <mesh
+        ref={prominenceMeshRef}
+        geometry={sphereGeo}
+        scale={prominenceRadius}
+        raycast={NOOP_RAYCAST}
+      >
         <shaderMaterial
           ref={prominenceMatRef}
           vertexShader={prominenceVert}
           fragmentShader={prominenceFrag}
           uniforms={prominenceUniforms}
           transparent
-          side={THREE.DoubleSide}
+          side={THREE.BackSide}
           depthWrite={false}
           blending={THREE.AdditiveBlending}
         />
       </mesh>
 
-      {/* 3. Volumetric Outer Corona & Solar Wind Streamers (Nhật Hoa) */}
-      <mesh raycast={() => null}>
-        <sphereGeometry args={[coronaRadius, 48, 48]} />
+      {/* 3. Volumetric Outer Corona & Solar Wind Streamers */}
+      <mesh
+        ref={coronaMeshRef}
+        geometry={sphereGeo}
+        scale={coronaRadius}
+        raycast={NOOP_RAYCAST}
+      >
         <shaderMaterial
           ref={coronaMatRef}
           vertexShader={coronaVert}
           fragmentShader={coronaFrag}
           uniforms={coronaUniforms}
           transparent
-          side={THREE.DoubleSide}
+          side={THREE.BackSide}
           depthWrite={false}
           blending={THREE.AdditiveBlending}
         />

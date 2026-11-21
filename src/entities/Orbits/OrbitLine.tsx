@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { useAppStore } from '@/stores/useAppStore';
 
@@ -6,6 +6,7 @@ interface OrbitLineProps {
   distance: number;
   color?: string;
   isSelected?: boolean;
+  dimmed?: boolean;
   eccentricity?: number;
   inclinationDeg?: number;
 }
@@ -14,12 +15,13 @@ export const OrbitLine: React.FC<OrbitLineProps> = ({
   distance,
   color = '#38bdf8',
   isSelected = false,
+  dimmed = false,
   eccentricity = 0.01,
   inclinationDeg = 1.5
 }) => {
   const showOrbits = useAppStore((state) => state.showOrbits);
 
-  const lineObject = useMemo(() => {
+  const geometry = useMemo(() => {
     const pts: THREE.Vector3[] = [];
     const segments = 256;
     const incRad = THREE.MathUtils.degToRad(inclinationDeg);
@@ -35,15 +37,35 @@ export const OrbitLine: React.FC<OrbitLineProps> = ({
       pts.push(new THREE.Vector3(x, y, zFinal));
     }
 
-    const geometry = new THREE.BufferGeometry().setFromPoints(pts);
-    const material = new THREE.LineBasicMaterial({
-      color: new THREE.Color(color),
-      transparent: true,
-      opacity: isSelected ? 0.45 : 0.16
-    });
+    return new THREE.BufferGeometry().setFromPoints(pts);
+  }, [distance, eccentricity, inclinationDeg]);
 
-    return new THREE.Line(geometry, material);
-  }, [distance, color, isSelected, eccentricity, inclinationDeg]);
+  const material = useMemo(
+    () =>
+      new THREE.LineBasicMaterial({
+        transparent: true,
+        opacity: 0.16
+      }),
+    []
+  );
+
+  material.color.set(color);
+  material.opacity = dimmed ? 0.0 : isSelected ? 0.22 : 0.16;
+
+  const lineObject = useMemo(() => new THREE.Line(geometry, material), [geometry, material]);
+  lineObject.visible = !dimmed;
+
+  useEffect(() => {
+    return () => {
+      geometry.dispose();
+    };
+  }, [geometry]);
+
+  useEffect(() => {
+    return () => {
+      material.dispose();
+    };
+  }, [material]);
 
   if (!showOrbits) return null;
 

@@ -2,19 +2,20 @@ precision highp float;
 
 uniform float uTime;
 uniform vec3 uLocalCamPos;
+uniform int uMaxSteps;
+uniform float uVolumeRadius;
 
 varying vec2 vUv;
 varying vec3 vWorldPosition;
 varying vec3 vLocalPos;
 varying vec3 vNormal;
 
-// Calibrated physical dimensions for visualRadius = 28.0
-const float RS = 5.6;         // Schwarzschild Radius r_s
-const float R_HORIZON = 5.88; // Event Horizon (1.05 * RS)
-const float R_ISCO = 8.6;     // Innermost Stable Circular Orbit (~1.5 * RS)
-const float R_OUTER = 34.0;   // Outer edge of accretion disk
+// Calibrated relativistic dimensions (R_SHADOW = 1.5 * RS photon-sphere capture boundary — zero sky gap!)
+const float RS = 5.6;
+const float R_SHADOW = 8.4;   // Photon sphere capture shadow boundary (1.5 * RS)
+const float R_ISCO = 8.55;    // Innermost Stable Circular Orbit hugging photon shadow
+const float R_OUTER = 34.5;   // Outer edge of Keplerian accretion disk
 
-// Safe hashing and noise functions
 float hash(vec2 p) {
   vec2 h = fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453);
   return h.x;
@@ -41,47 +42,52 @@ float fbm(vec2 p) {
 }
 
 void main() {
-  // Ray origin and unit velocity in black hole local coordinate system
-  vec3 rayPos = (length(uLocalCamPos) < 64.0) ? uLocalCamPos : vLocalPos;
-  vec3 rayVel = normalize(vLocalPos - uLocalCamPos);
+  float volumeRadius = (uVolumeRadius > 0.0) ? uVolumeRadius : 65.0;
+  vec3 volumePos = vLocalPos * volumeRadius;
+
+  vec3 rayPos = (length(uLocalCamPos) < 65.5) ? uLocalCamPos : volumePos;
+  vec3 rayVel = normalize(volumePos - uLocalCamPos);
+  int maxSteps = max(uMaxSteps, 24);
+  float stepScale = (uMaxSteps > 0) ? (55.0 / float(uMaxSteps)) : 1.0;
 
   vec3 accumColor = vec3(0.0);
   float accumAlpha = 0.0;
   float minR = 9999.0;
   bool hitHorizon = false;
 
-  // Numerical integration of null geodesics in Schwarzschild curved spacetime
-  for (int i = 0; i < 55; i++) {
+  // Null geodesic integration in curved Schwarzschild spacetime (DNGR Interstellar lensing)
+  for (int i = 0; i < 64; i++) {
+    if (i >= maxSteps) {
+      break;
+    }
     float r = length(rayPos);
     minR = min(minR, r);
 
-    // 1. Ray fell into the event horizon: swallowed into the singularity
-    if (r < R_HORIZON) {
+    // 1. Any ray crossing inside R_SHADOW (1.5 * RS photon sphere) is captured by the black hole shadow
+    if (r < R_SHADOW) {
       hitHorizon = true;
       break;
     }
 
-    // 2. Ray escaped into outer space beyond bounding volume
-    if (r > 64.0 && i > 8) {
+    // 2. Escaped bounding sphere
+    if (r > 65.5 && i > 4) {
       break;
     }
 
-    // 3. Adaptive step size: fine resolution near photon sphere, larger steps in far field
-    float dt = clamp(r * 0.055, 0.18, 1.6);
+    // 3. Calibrated adaptive step size so rays reach R_SHADOW well within 24..48 step budgets while resolving smooth Einstein arches
+    float dt = clamp((r - R_SHADOW * 0.66) * 0.115, 0.34, 2.48) * stepScale;
 
-    // 4. Schwarzschild gravitational acceleration:
-    // a = -1.5 * RS * (pos - vel * dot(pos, vel)) / (r^3)
+    // 4. Relativistic gravitational deflection bending rays over & under the shadow onto the far accretion disk
     float posDotVel = dot(rayPos, rayVel);
     vec3 perp = rayPos - rayVel * posDotVel;
-    vec3 accel = -1.5 * RS * perp / (r * r * r);
+    vec3 accel = -2.45 * RS * perp / max(r * r * r, 1.0);
 
-    rayVel += accel * dt;
-    rayVel = normalize(rayVel);
+    rayVel = normalize(rayVel + accel * dt);
 
     vec3 oldPos = rayPos;
     rayPos += rayVel * dt;
 
-    // 5. Plane crossing test for equatorial accretion disk at y = 0
+    // 5. Equatorial accretion disk plane-crossing test (y = 0)
     if (oldPos.y * rayPos.y <= 0.0) {
       float frac = abs(oldPos.y) / (abs(oldPos.y) + abs(rayPos.y) + 0.00001);
       vec3 crossPos = mix(oldPos, rayPos, frac);
@@ -91,44 +97,39 @@ void main() {
         float u = (rDisk - R_ISCO) / (R_OUTER - R_ISCO);
         float phi = atan(crossPos.z, crossPos.x + 0.00001);
 
-        // Differential Keplerian rotation: Omega ~ 1 / r^1.5
         float omega = sqrt(RS / max(rDisk * rDisk * rDisk, 0.1)) * 1.8;
         float swirl = phi - omega * uTime * 2.2;
 
-        // Multi-octave burning plasma filaments
-        vec2 uv = vec2(swirl * 2.6, rDisk * 0.5);
+        vec2 uv = vec2(swirl * 2.6, rDisk * 0.52);
         float turb = fbm(uv);
-        float filaments = pow(clamp(turb, 0.0, 1.0), 1.35) * 1.35;
+        float rings = 0.78 + 0.22 * sin(rDisk * 2.8);
+        float filaments = pow(clamp(turb, 0.0, 1.0), 1.3) * 1.38 * rings;
 
-        // Radial emission profile
-        float radialProf = pow(clamp(1.0 - u, 0.0, 1.0), 1.5) * smoothstep(0.0, 0.08, u);
+        float radialProf = pow(clamp(1.0 - u, 0.0, 1.0), 1.5) * smoothstep(0.0, 0.085, u);
 
-        // Relativistic Doppler Beaming
-        float beta = clamp(sqrt(RS / (2.0 * rDisk)), 0.1, 0.6);
+        // Relativistic Doppler beaming
+        float beta = clamp(sqrt(RS / (2.0 * rDisk)), 0.1, 0.56);
         vec3 vGas = vec3(-sin(phi), 0.0, cos(phi)) * beta;
         float vLos = dot(vGas, -rayVel);
         float gamma = 1.0 / sqrt(max(1.0 - beta * beta, 0.01));
         float doppler = 1.0 / (gamma * (1.0 - vLos));
-        float dopplerBoost = pow(clamp(doppler, 0.2, 4.0), 3.0);
+        float dopplerBoost = pow(clamp(doppler, 0.28, 3.4), 2.6);
 
-        // Thermal Color Progression
-        vec3 colorHot = vec3(1.5, 1.5, 1.8);
-        vec3 colorWarm = vec3(1.6, 1.05, 0.3);
-        vec3 colorCool = vec3(0.85, 0.22, 0.02);
+        vec3 colorHot = vec3(1.55, 1.38, 1.05);
+        vec3 colorWarm = vec3(1.52, 0.96, 0.32);
+        vec3 colorCool = vec3(0.78, 0.22, 0.03);
 
-        vec3 diskCol = mix(colorHot, colorWarm, smoothstep(0.0, 0.35, u));
-        diskCol = mix(diskCol, colorCool, smoothstep(0.35, 1.0, u));
+        vec3 diskCol = mix(colorHot, colorWarm, smoothstep(0.0, 0.34, u));
+        diskCol = mix(diskCol, colorCool, smoothstep(0.34, 1.0, u));
 
-        if (doppler > 1.0) {
-          diskCol = mix(diskCol, vec3(1.4, 1.6, 2.0), clamp((doppler - 1.0) * 0.6, 0.0, 0.8));
+        if (doppler > 1.05) {
+          diskCol = mix(diskCol, vec3(1.55, 1.48, 1.28), clamp((doppler - 1.05) * 0.45, 0.0, 0.65));
         }
 
-        // Optical depth scaling with angle of incidence
-        float opticalDepth = 1.0 / max(abs(rayVel.y), 0.2);
-        float dAlpha = clamp(radialProf * filaments * opticalDepth * 0.85, 0.0, 0.95);
-        vec3 dColor = diskCol * radialProf * filaments * dopplerBoost * 2.8;
+        float opticalDepth = 1.0 / max(abs(rayVel.y), 0.22);
+        float dAlpha = clamp(radialProf * filaments * opticalDepth * 0.86, 0.0, 0.96);
+        vec3 dColor = diskCol * radialProf * filaments * dopplerBoost * 2.45;
 
-        // Front-to-back accumulation
         accumColor += dColor * (1.0 - accumAlpha);
         accumAlpha += dAlpha * (1.0 - accumAlpha);
 
@@ -139,16 +140,16 @@ void main() {
     }
   }
 
-  // 6. Razor-sharp Photon Sphere Ring (at r ~ 1.5 * RS)
-  float photonDist = abs(minR - RS * 1.5);
-  float photonGlow = exp(-pow(photonDist * 5.5, 2.0)) * 2.8;
-  vec3 photonColor = vec3(1.6, 1.5, 1.3) * photonGlow;
-  accumColor += photonColor * (1.0 - accumAlpha);
-  accumAlpha = clamp(accumAlpha + photonGlow * 0.6, 0.0, 1.0);
+  // 6. Warm golden relativistic photon-sphere rim hugging directly against R_SHADOW (zero detached white hoop!)
+  if (!hitHorizon) {
+    float photonDist = max(0.0, minR - R_SHADOW);
+    float photonGlow = exp(-pow(photonDist * 2.6, 2.0)) * 0.92;
+    vec3 photonColor = vec3(1.48, 1.08, 0.54) * photonGlow;
+    accumColor += photonColor * (1.0 - accumAlpha);
+    accumAlpha = clamp(accumAlpha + photonGlow * 0.68, 0.0, 1.0);
+  }
 
-  // 7. Output composition
   if (hitHorizon) {
-    // Pure pitch-black event horizon shadow (swallows all background light)
     gl_FragColor = vec4(accumColor, 1.0);
   } else {
     if (accumAlpha < 0.005) {

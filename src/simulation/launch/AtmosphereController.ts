@@ -4,11 +4,11 @@ import { AtmosphereState } from "../core/types";
 export class AtmosphereController {
   private static instance: AtmosphereController;
 
-  // Sky keyframe colors
+  // Sky keyframe colors (physically darkening rapidly above 35 km stratosphere into true starry vacuum by 75 km)
   private colorSeaLevel = new THREE.Color(0.35, 0.65, 0.98); // Vibrant cyan-blue
-  private colorTroposphere = new THREE.Color(0.18, 0.42, 0.85); // Rich azure
-  private colorStratosphere = new THREE.Color(0.06, 0.14, 0.45); // Deep royal blue
-  private colorMesosphere = new THREE.Color(0.015, 0.03, 0.15); // Indigo navy
+  private colorTroposphere = new THREE.Color(0.16, 0.38, 0.80); // Rich azure
+  private colorStratosphere = new THREE.Color(0.035, 0.085, 0.28); // Deep stratospheric navy
+  private colorMesosphere = new THREE.Color(0.005, 0.012, 0.055); // Near-vacuum velvet indigo
   private colorSpace = new THREE.Color(0.001, 0.001, 0.003); // Near pure black
 
   private currentState: AtmosphereState = {
@@ -53,24 +53,24 @@ export class AtmosphereController {
       this.currentState.fogDensity = THREE.MathUtils.lerp(0.0004, 0.00015, t);
       this.currentState.earthCurvatureVisibility = t * 0.2;
     } else if (alt < 40) {
-      // 10 - 40 km: Stratosphere
+      // 10 - 40 km: Stratosphere (overhead sky deepens rapidly to dark navy)
       const t = (alt - 10) / 30;
       this.currentState.skyColor.copy(this.colorTroposphere).lerp(this.colorStratosphere, t);
-      this.currentState.starVisibility = t * 0.35;
-      this.currentState.fogDensity = THREE.MathUtils.lerp(0.00015, 0.00003, t);
-      this.currentState.earthCurvatureVisibility = 0.2 + t * 0.4;
+      this.currentState.starVisibility = t * 0.45;
+      this.currentState.fogDensity = THREE.MathUtils.lerp(0.00015, 0.00002, t);
+      this.currentState.earthCurvatureVisibility = 0.2 + t * 0.45;
     } else if (alt < 80) {
-      // 40 - 80 km: Mesosphere
+      // 40 - 80 km: Mesosphere (99.99% of atmosphere below -> crisp starry vacuum sky above glowing Earth limb)
       const t = (alt - 40) / 40;
       this.currentState.skyColor.copy(this.colorStratosphere).lerp(this.colorMesosphere, t);
-      this.currentState.starVisibility = 0.35 + t * 0.45;
-      this.currentState.fogDensity = THREE.MathUtils.lerp(0.00003, 0.0, t);
-      this.currentState.earthCurvatureVisibility = 0.6 + t * 0.3;
+      this.currentState.starVisibility = 0.45 + t * 0.45;
+      this.currentState.fogDensity = THREE.MathUtils.lerp(0.00002, 0.0, t);
+      this.currentState.earthCurvatureVisibility = 0.65 + t * 0.3;
     } else if (alt < 120) {
       // 80 - 120 km: Thermosphere / Karman Line transition to Space
       const t = (alt - 80) / 40;
       this.currentState.skyColor.copy(this.colorMesosphere).lerp(this.colorSpace, t);
-      this.currentState.starVisibility = 0.8 + t * 0.2;
+      this.currentState.starVisibility = 0.9 + t * 0.1;
       this.currentState.fogDensity = 0.0;
       this.currentState.earthCurvatureVisibility = 0.9 + t * 0.1;
     } else {

@@ -69,6 +69,7 @@ export interface LaunchStep {
   stageSeparated?: boolean;
   fairingJettisoned?: boolean;
   narration?: NarrationData;
+  narrationEn?: NarrationData;
 }
 
 export interface AtmosphereState {
@@ -88,8 +89,10 @@ export interface HistoricalEvent {
   id: string;
   millionYearsAgo: number; // Negative number, e.g. -66 for 66 Ma
   title: string;
+  titleEn?: string;
   type: "extinction" | "evolution" | "geological" | "impact";
   description: string;
+  descriptionEn?: string;
   visualEffect?: "asteroid_impact" | "volcanism" | "ice_surge" | "oxygenation";
 }
 
@@ -100,6 +103,7 @@ export interface EarthPeriod {
   startMa: number; // e.g. -4540
   endMa: number; // e.g. -4000
   description: string;
+  descriptionEn?: string;
   dominantColor: string;
   secondaryColor: string;
   surfaceTextureType: "magma" | "pangaea" | "jurassic" | "cretaceous" | "ice_age" | "modern";
@@ -108,6 +112,7 @@ export interface EarthPeriod {
   co2Ppm: number;
   seaLevelM: number;
   keyLifeforms: string[];
+  keyLifeformsEn?: string[];
   events: HistoricalEvent[];
 }
 
@@ -127,9 +132,13 @@ export interface CosmicEventData {
   type: CosmicEventType;
   timeGyrAgo: number; // Billion years ago (e.g. 13.8 for Big Bang, 4.6 for Solar System)
   title: string;
+  titleEn?: string;
   subtitle: string;
+  subtitleEn?: string;
   description: string;
+  descriptionEn?: string;
   scientificFact: string;
+  scientificFactEn?: string;
   durationSeconds: number;
   primaryColor: string;
   secondaryColor: string;

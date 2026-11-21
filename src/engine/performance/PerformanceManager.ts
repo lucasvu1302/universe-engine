@@ -1,28 +1,58 @@
 import { getGPUTier, type TierResult } from 'detect-gpu';
 import { useAppStore, type QualityTier } from '@/stores/useAppStore';
 
+export type ResolvedQualityTier = 'LOW' | 'MEDIUM' | 'HIGH' | 'ULTRA';
+
+export interface QualityProfile {
+  resolvedTier: ResolvedQualityTier;
+  dpr: number;
+  enablePostProcessing: boolean;
+  enableBloom: boolean;
+  starCount: number;
+  galaxyParticleCount: number;
+  asteroidCount: number;
+  sphereSegments: number;
+  raymarchSteps: number;
+}
+
 export interface PerformanceMetrics {
   fps: number;
   frameTimeMs: number;
   gpuTier: number;
-  activeQuality: QualityTier;
+  activeQuality: ResolvedQualityTier;
   targetRefreshRate: number;
   drawCalls: number;
   triangles: number;
 }
 
+export interface RendererInfoLike {
+  info: {
+    autoReset: boolean;
+    render: {
+      calls: number;
+      triangles: number;
+    };
+    reset: () => void;
+  };
+}
+
 export class PerformanceManager {
   private static instance: PerformanceManager;
 
-  private frameTimes: number[] = [];
+  public readonly frameBuffer = new Float64Array(60);
   private readonly sampleSize = 60;
+  private frameWriteIndex = 0;
+  private frameCount = 0;
+  private frameSumMs = 0;
   private lastTimestamp = performance.now();
-  
+
   public currentFPS: number = 60;
   public currentFrameTimeMs: number = 16.67;
   public targetRefreshRate: number = 60;
+  public drawCalls: number = 0;
+  public triangles: number = 0;
   public gpuTierResult: TierResult | null = null;
-  
+
   // Throttle counter for auto-degradation
   private badFrameCounter = 0;
   private readonly badFrameThreshold = 180; // 3 seconds of sustained drops
@@ -46,7 +76,6 @@ export class PerformanceManager {
       const tier = this.gpuTierResult?.tier ?? 2;
       useAppStore.getState().setDetectedGPUTier(tier);
     } catch {
-      // Default safe tier 2
       useAppStore.getState().setDetectedGPUTier(2);
     }
   }
@@ -78,47 +107,143 @@ export class PerformanceManager {
     if (typeof document === 'undefined') return;
 
     document.addEventListener('visibilitychange', () => {
-      const isHidden = document.hidden;
-      if (isHidden) {
-        // Automatically suspend expensive tasks
-        useAppStore.getState().togglePause();
-      }
+      useAppStore.getState().setTabHidden(Boolean(document.hidden));
     });
   }
 
+  public resolveQualityTier(
+    quality: QualityTier = useAppStore.getState().graphicsQuality,
+    detectedGPUTier: number = useAppStore.getState().detectedGPUTier
+  ): ResolvedQualityTier {
+    if (quality !== 'AUTO') {
+      return quality;
+    }
+    if (detectedGPUTier <= 1) return 'LOW';
+    if (detectedGPUTier === 2) return 'MEDIUM';
+    if (detectedGPUTier === 3) return 'HIGH';
+    return 'ULTRA';
+  }
+
+  public getQualityProfile(
+    quality: QualityTier = useAppStore.getState().graphicsQuality,
+    detectedGPUTier: number = useAppStore.getState().detectedGPUTier
+  ): QualityProfile {
+    const resolvedTier = this.resolveQualityTier(quality, detectedGPUTier);
+    const maxDeviceDPR = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+
+    switch (resolvedTier) {
+      case 'LOW':
+        return {
+          resolvedTier: 'LOW',
+          dpr: 1.0,
+          enablePostProcessing: false,
+          enableBloom: false,
+          starCount: 7000,
+          galaxyParticleCount: 35000,
+          asteroidCount: 600,
+          sphereSegments: 24,
+          raymarchSteps: 24,
+        };
+      case 'MEDIUM':
+        return {
+          resolvedTier: 'MEDIUM',
+          dpr: Math.min(maxDeviceDPR, 1.25),
+          enablePostProcessing: true,
+          enableBloom: true,
+          starCount: 14000,
+          galaxyParticleCount: 65000,
+          asteroidCount: 1200,
+          sphereSegments: 36,
+          raymarchSteps: 36,
+        };
+      case 'HIGH':
+        return {
+          resolvedTier: 'HIGH',
+          dpr: Math.min(maxDeviceDPR, 1.5),
+          enablePostProcessing: true,
+          enableBloom: true,
+          starCount: 22000,
+          galaxyParticleCount: 95000,
+          asteroidCount: 2000,
+          sphereSegments: 48,
+          raymarchSteps: 48,
+        };
+      case 'ULTRA':
+      default:
+        return {
+          resolvedTier: 'ULTRA',
+          dpr: Math.min(maxDeviceDPR, 2.0),
+          enablePostProcessing: true,
+          enableBloom: true,
+          starCount: 35000,
+          galaxyParticleCount: 120000,
+          asteroidCount: 2800,
+          sphereSegments: 64,
+          raymarchSteps: 56,
+        };
+    }
+  }
+
   /**
-   * Called once per frame in main render loop.
+   * Zero-allocation O(1) moving-average frame recorder using Float64Array(60).
    */
   public recordFrame(now: number = performance.now()): void {
     const delta = now - this.lastTimestamp;
     this.lastTimestamp = now;
 
     if (delta > 0 && delta < 500) {
-      this.frameTimes.push(delta);
-      if (this.frameTimes.length > this.sampleSize) {
-        this.frameTimes.shift();
+      if (this.frameCount === this.sampleSize) {
+        this.frameSumMs -= this.frameBuffer[this.frameWriteIndex];
+      } else {
+        this.frameCount++;
       }
 
-      // Moving average
-      const sum = this.frameTimes.reduce((a, b) => a + b, 0);
-      this.currentFrameTimeMs = sum / this.frameTimes.length;
+      this.frameBuffer[this.frameWriteIndex] = delta;
+      this.frameSumMs += delta;
+      this.frameWriteIndex = (this.frameWriteIndex + 1) % this.sampleSize;
+
+      this.currentFrameTimeMs = this.frameSumMs / this.frameCount;
       this.currentFPS = Math.round(1000 / this.currentFrameTimeMs);
 
-      // Check degradation in AUTO quality mode
       this.checkAutoDegradation();
     }
+  }
+
+  /**
+   * Captures accumulated WebGL render pass stats across main + postprocessing passes,
+   * then resets gl.info manually for the upcoming frame.
+   */
+  public recordRendererInfo(gl: RendererInfoLike): void {
+    if (gl.info.autoReset !== false) {
+      gl.info.autoReset = false;
+    }
+    this.drawCalls = gl.info.render.calls;
+    this.triangles = gl.info.render.triangles;
+    gl.info.reset();
+  }
+
+  public getMetrics(): PerformanceMetrics {
+    const state = useAppStore.getState();
+    return {
+      fps: this.currentFPS,
+      frameTimeMs: this.currentFrameTimeMs,
+      gpuTier: state.detectedGPUTier,
+      activeQuality: this.resolveQualityTier(state.graphicsQuality, state.detectedGPUTier),
+      targetRefreshRate: this.targetRefreshRate,
+      drawCalls: this.drawCalls,
+      triangles: this.triangles,
+    };
   }
 
   private checkAutoDegradation() {
     const state = useAppStore.getState();
     if (state.graphicsQuality !== 'AUTO') return;
 
-    const frameBudgetMs = 1000 / (this.targetRefreshRate * 0.75); // 25% tolerance
+    const frameBudgetMs = 1000 / (this.targetRefreshRate * 0.75);
     if (this.currentFrameTimeMs > frameBudgetMs) {
       this.badFrameCounter++;
       if (this.badFrameCounter >= this.badFrameThreshold) {
         this.badFrameCounter = 0;
-        // Step down quality gracefully
         this.stepDownQuality();
       }
     } else {
@@ -134,44 +259,17 @@ export class PerformanceManager {
     }
   }
 
-  public getDPR(quality: QualityTier): number {
-    const maxDeviceDPR = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-    const tier = useAppStore.getState().detectedGPUTier;
-
-    switch (quality) {
-      case 'ULTRA':
-        return Math.min(maxDeviceDPR, 2.0);
-      case 'HIGH':
-        return Math.min(maxDeviceDPR, 1.5);
-      case 'MEDIUM':
-        return Math.min(maxDeviceDPR, 1.25);
-      case 'LOW':
-        return 1.0;
-      case 'AUTO':
-      default:
-        if (tier >= 3) return Math.min(maxDeviceDPR, 1.75);
-        if (tier === 2) return Math.min(maxDeviceDPR, 1.25);
-        return 1.0;
-    }
+  public getDPR(
+    quality: QualityTier,
+    detectedGPUTier: number = useAppStore.getState().detectedGPUTier
+  ): number {
+    return this.getQualityProfile(quality, detectedGPUTier).dpr;
   }
 
-  public getParticleCount(quality: QualityTier): number {
-    const tier = useAppStore.getState().detectedGPUTier;
-
-    switch (quality) {
-      case 'ULTRA':
-        return 35000;
-      case 'HIGH':
-        return 22000;
-      case 'MEDIUM':
-        return 14000;
-      case 'LOW':
-        return 7000;
-      case 'AUTO':
-      default:
-        if (tier >= 3) return 25000;
-        if (tier === 2) return 15000;
-        return 8000;
-    }
+  public getParticleCount(
+    quality: QualityTier,
+    detectedGPUTier: number = useAppStore.getState().detectedGPUTier
+  ): number {
+    return this.getQualityProfile(quality, detectedGPUTier).starCount;
   }
 }

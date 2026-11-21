@@ -1,6 +1,8 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { useAppStore } from '@/stores/useAppStore';
+import { PerformanceManager } from '@/engine/performance/PerformanceManager';
 import galaxyVert from '@/shaders/galaxy/galaxy.vert.glsl';
 import galaxyFrag from '@/shaders/galaxy/galaxy.frag.glsl';
 import galaxyNebulaVert from '@/shaders/galaxy/galaxyNebula.vert.glsl';
@@ -11,17 +13,47 @@ interface GalaxySceneProps {
 }
 
 export const GalaxyScene: React.FC<GalaxySceneProps> = ({ onEnterSolarSystem }) => {
+  const rootGroupRef = useRef<THREE.Group>(null);
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const nebulaMatRef = useRef<THREE.ShaderMaterial>(null);
   const coreRef = useRef<THREE.Group>(null);
   const beaconRingsRef = useRef<THREE.Group>(null);
 
-  const particleCount = 120000;
+  const quality = useAppStore((state) => state.graphicsQuality);
+  const detectedGPUTier = useAppStore((state) => state.detectedGPUTier);
+
+  const particleCount = useMemo(
+    () => PerformanceManager.getInstance().getQualityProfile(quality, detectedGPUTier).galaxyParticleCount,
+    [quality, detectedGPUTier]
+  );
   const maxRadius = 360;
 
+  useEffect(() => {
+    const root = rootGroupRef.current;
+    const pts = pointsRef.current;
+    const mat = materialRef.current;
+    const nebMat = nebulaMatRef.current;
+    return () => {
+      mat?.dispose();
+      nebMat?.dispose();
+      root?.traverse((obj) => {
+        if (obj === pts) return;
+        const mesh = obj as THREE.Mesh;
+        if (mesh.isMesh) {
+          mesh.geometry?.dispose();
+          if (Array.isArray(mesh.material)) {
+            mesh.material.forEach((m) => m.dispose());
+          } else {
+            mesh.material?.dispose();
+          }
+        }
+      });
+    };
+  }, []);
+
   // Generate 4-arm barred spiral Milky Way with distinct astrophysical stellar populations
-  const { positions, colors, scales, twinkles } = useMemo(() => {
+  const geometry = useMemo(() => {
     const pos = new Float32Array(particleCount * 3);
     const col = new Float32Array(particleCount * 3);
     const scl = new Float32Array(particleCount);
@@ -156,13 +188,19 @@ export const GalaxyScene: React.FC<GalaxySceneProps> = ({ onEnterSolarSystem }) 
       twk[i * 2 + 1] = Math.random() * Math.PI * 2; // Twinkle phase
     }
 
-    return {
-      positions: pos,
-      colors: col,
-      scales: scl,
-      twinkles: twk
-    };
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('aColor', new THREE.BufferAttribute(col, 3));
+    g.setAttribute('aScale', new THREE.BufferAttribute(scl, 1));
+    g.setAttribute('aTwinkle', new THREE.BufferAttribute(twk, 2));
+    return g;
   }, [particleCount, maxRadius]);
+
+  useEffect(() => {
+    return () => {
+      geometry.dispose();
+    };
+  }, [geometry]);
 
   const starUniforms = useMemo(
     () => ({
@@ -198,7 +236,7 @@ export const GalaxyScene: React.FC<GalaxySceneProps> = ({ onEnterSolarSystem }) 
   const solPos: [number, number, number] = [115, 2, 70];
 
   return (
-    <group>
+    <group ref={rootGroupRef}>
       {/* 1. Volumetric Diffuse Interstellar Gas & Dark Dust Lanes Plane */}
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[780, 780]} />
@@ -214,26 +252,8 @@ export const GalaxyScene: React.FC<GalaxySceneProps> = ({ onEnterSolarSystem }) 
         />
       </mesh>
 
-      {/* 2. 120,000 Multi-Population Stars Points Cloud */}
-      <points ref={pointsRef}>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            args={[positions, 3]}
-          />
-          <bufferAttribute
-            attach="attributes-aColor"
-            args={[colors, 3]}
-          />
-          <bufferAttribute
-            attach="attributes-aScale"
-            args={[scales, 1]}
-          />
-          <bufferAttribute
-            attach="attributes-aTwinkle"
-            args={[twinkles, 2]}
-          />
-        </bufferGeometry>
+      {/* 2. Multi-Population Stars Points Cloud */}
+      <points ref={pointsRef} geometry={geometry}>
         <shaderMaterial
           ref={materialRef}
           vertexShader={galaxyVert}

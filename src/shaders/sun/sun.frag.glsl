@@ -76,6 +76,13 @@ float snoise(vec3 v) {
   return 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
 }
 
+// Fast arithmetic 3D hash for Voronoi cellular lattice jitter (0 simplex calls)
+vec3 hash33(vec3 p) {
+  p = fract(p * vec3(0.1031, 0.1030, 0.0973));
+  p += dot(p, p.yxz + 33.33);
+  return fract((p.xxy + p.yxx) * p.zyx);
+}
+
 // 3D Voronoi Cellular Granulation for hot plasma cells
 float voronoi(vec3 p) {
   vec3 i = floor(p);
@@ -86,12 +93,7 @@ float voronoi(vec3 p) {
     for (int y = -1; y <= 1; y++) {
       for (int z = -1; z <= 1; z++) {
         vec3 neighbor = vec3(float(x), float(y), float(z));
-        // Pseudo-random cell feature point
-        vec3 point = vec3(
-          snoise(i + neighbor + vec3(0.0)),
-          snoise(i + neighbor + vec3(17.3)),
-          snoise(i + neighbor + vec3(43.7))
-        ) * 0.5 + 0.5;
+        vec3 point = hash33(i + neighbor);
         vec3 diff = neighbor + point - f;
         float dist = length(diff);
         minDist = min(minDist, dist);

@@ -1,10 +1,20 @@
-import { t } from '@/i18n';
+import { t, useI18nStore } from '@/i18n';
 
 export interface CelestialBodyData {
   id: string;
   name: string;
   displayName: string;
-  type: 'star' | 'rocky' | 'atmospheric' | 'gas_giant' | 'ice_giant' | 'moon' | 'black_hole' | 'pulsar';
+  type:
+    | 'star'
+    | 'rocky'
+    | 'atmospheric'
+    | 'gas_giant'
+    | 'ice_giant'
+    | 'moon'
+    | 'black_hole'
+    | 'pulsar'
+    | 'spacecraft'
+    | 'constellation';
   diameterKm: number;
   massKg: string;
   gravityMs2: number;
@@ -24,6 +34,28 @@ export interface CelestialBodyData {
   description: string;
   parentPlanetId?: string;
   moons?: string[];
+  // Optional IAU Constellation Review & Star-Chart Metadata
+  raHours?: number;
+  decDeg?: number;
+  brightestStar?: string;
+  brightestStarVi?: string;
+  brightestStarEn?: string;
+  skyAreaDeg2?: number;
+  skyRank?: number;
+  distanceLightYears?: string;
+  distanceLightYearsVi?: string;
+  distanceLightYearsEn?: string;
+  mainStarsCount?: number;
+  deepSkyObjects?: string;
+  deepSkyObjectsVi?: string;
+  deepSkyObjectsEn?: string;
+  hemisphereVi?: string;
+  hemisphereEn?: string;
+  bestSeasonVi?: string;
+  bestSeasonEn?: string;
+  mythologyVi?: string;
+  mythologyEn?: string;
+  neighborConstellations?: string[];
   atmosphere?: {
     color: string;
     density: number;
@@ -286,7 +318,7 @@ export const CELESTIAL_BODIES: Record<string, CelestialBodyData> = {
     gravityMs2: 1.315,
     dayLengthHours: 85.2,
     orbitalPeriodDays: 3.55,
-    meanTemperatureC: -160,
+    meanTemperatureC: -171,
     moonsCount: 0,
     axialTiltDeg: 0.1,
     orbitalDistanceAU: 5.204,
@@ -534,8 +566,443 @@ export const CELESTIAL_BODIES: Record<string, CelestialBodyData> = {
     color: '#38bdf8',
     emissiveColor: '#ffffff',
     description: 'A millisecond pulsar with colossal magnetic field lines that accelerate charged particles into continuous relativistic lighthouse beams sweeping through deep space.'
+  },
+  iss: {
+    id: 'iss',
+    name: 'ISS',
+    displayName: 'International Space Station (ISS)',
+    type: 'spacecraft',
+    parentPlanetId: 'earth',
+    diameterKm: 0.109,
+    massKg: '4.50 × 10⁵ kg (450 t)',
+    gravityMs2: 8.65,
+    dayLengthHours: 1.54,
+    orbitalPeriodDays: 0.064,
+    meanTemperatureC: 22,
+    moonsCount: 0,
+    axialTiltDeg: 51.6,
+    orbitalDistanceAU: 1.0000028,
+    visualRadius: 0.3,
+    visualDistance: 3.65,
+    orbitalSpeed: 8.5,
+    rotationSpeed: 0,
+    color: '#38bdf8',
+    description: 'Humanity’s permanent orbital laboratory in Low Earth Orbit at 420 km altitude, completing 15.5 orbits per day at 27,600 km/h.'
+  },
+  jwst: {
+    id: 'jwst',
+    name: 'James Webb (JWST)',
+    displayName: 'James Webb Space Telescope (JWST)',
+    type: 'spacecraft',
+    parentPlanetId: 'earth',
+    diameterKm: 0.021,
+    massKg: '6.50 × 10³ kg (6.5 t)',
+    gravityMs2: 0.0,
+    dayLengthHours: 24.0,
+    orbitalPeriodDays: 365.25,
+    meanTemperatureC: -223,
+    moonsCount: 0,
+    axialTiltDeg: 0.0,
+    orbitalDistanceAU: 1.01,
+    visualRadius: 0.3,
+    visualDistance: 7.5,
+    orbitalSpeed: 0.8,
+    rotationSpeed: 0,
+    color: '#fbbf24',
+    description: 'Deep-infrared space observatory stationed in a halo orbit around the Sun-Earth L2 point 1.5 million km beyond Earth, featuring an 18-segment gold-coated beryllium primary mirror.'
+  },
+  voyager1: {
+    id: 'voyager1',
+    name: 'Voyager 1',
+    displayName: 'Voyager 1 Interstellar Probe',
+    type: 'spacecraft',
+    diameterKm: 0.0037,
+    massKg: '721.9 kg',
+    gravityMs2: 0.0,
+    dayLengthHours: 24.0,
+    orbitalPeriodDays: 0,
+    meanTemperatureC: -194,
+    moonsCount: 0,
+    axialTiltDeg: 35.0,
+    orbitalDistanceAU: 163.0,
+    visualRadius: 0.4,
+    visualDistance: 420,
+    orbitalSpeed: 0,
+    rotationSpeed: 0,
+    color: '#818cf8',
+    description: 'The farthest human-made object in history, cruising through interstellar space beyond the heliopause at 17 km/s carrying the Golden Record.'
+  },
+  voyager2: {
+    id: 'voyager2',
+    name: 'Voyager 2',
+    displayName: 'Voyager 2 Grand Tour Probe',
+    type: 'spacecraft',
+    diameterKm: 0.0037,
+    massKg: '721.9 kg',
+    gravityMs2: 0.0,
+    dayLengthHours: 24.0,
+    orbitalPeriodDays: 0,
+    meanTemperatureC: -195,
+    moonsCount: 0,
+    axialTiltDeg: 48.0,
+    orbitalDistanceAU: 136.0,
+    visualRadius: 0.4,
+    visualDistance: 360,
+    orbitalSpeed: 0,
+    rotationSpeed: 0,
+    color: '#a78bfa',
+    description: 'The only spacecraft to have visited all four giant outer planets—Jupiter, Saturn, Uranus, and Neptune—now exploring the interstellar medium.'
+  },
+  constellation_orion: {
+    id: 'constellation_orion',
+    name: 'Orion',
+    displayName: 'Orion (The Hunter)',
+    type: 'constellation',
+    diameterKm: 0,
+    massKg: '—',
+    gravityMs2: 0,
+    dayLengthHours: 0,
+    orbitalPeriodDays: 0,
+    meanTemperatureC: 0,
+    moonsCount: 0,
+    axialTiltDeg: 0,
+    orbitalDistanceAU: 0,
+    visualRadius: 1,
+    visualDistance: 6500,
+    orbitalSpeed: 0,
+    rotationSpeed: 0,
+    color: '#38bdf8',
+    raHours: 5.58,
+    decDeg: -1.2,
+    brightestStar: 'Rigel (β Ori · 0.13m) & Betelgeuse (α Ori)',
+    brightestStarVi: 'Rigel (β Ori · 0.13m, siêu sao xanh) & Betelgeuse (α Ori)',
+    brightestStarEn: 'Rigel (β Ori · 0.13m, blue supergiant) & Betelgeuse (α Ori)',
+    skyAreaDeg2: 594,
+    skyRank: 26,
+    distanceLightYears: '243 – 1,344 ly',
+    distanceLightYearsVi: '243 – 1.344 năm a/s',
+    distanceLightYearsEn: '243 – 1,344 ly',
+    mainStarsCount: 7,
+    deepSkyObjects: 'Orion Nebula (M42), Horsehead Nebula (Barnard 33)',
+    deepSkyObjectsVi: 'Tinh vân Orion (M42), Tinh vân Đầu Ngựa (Barnard 33)',
+    deepSkyObjectsEn: 'Orion Nebula (M42), Horsehead Nebula (Barnard 33)',
+    hemisphereVi: 'Xích đạo thiên cầu (RA 5.6h · Dec -1°)',
+    hemisphereEn: 'Celestial Equator (RA 5.6h · Dec -1°)',
+    bestSeasonVi: 'Tháng 12 – Tháng 3 (bầu trời đêm mùa Đông)',
+    bestSeasonEn: 'December – March (Winter evening sky)',
+    mythologyVi: 'Chàng thợ săn khổng lồ Orion trong thần thoại Hy Lạp với Đai Lưng Ba Sao (Alnitak, Alnilam, Mintaka) thẳng tắp. Ngay dưới thanh kiếm là vườn ươm sao M42 sáng tới mức nhìn thấy bằng mắt thường.',
+    mythologyEn: 'The legendary Greek hunter marked by the unmistakable three-star Belt (Alnitak, Alnilam, Mintaka) and the naked-eye Orion Nebula (M42) stellar nursery.',
+    neighborConstellations: ['constellation_taurus', 'constellation_leo'],
+    description: 'Crown jewel of the winter night sky, framed by blue supergiant Rigel, red supergiant Betelgeuse, and the glowing Orion Nebula stellar nursery.'
+  },
+  constellation_ursa_major: {
+    id: 'constellation_ursa_major',
+    name: 'Ursa Major',
+    displayName: 'Ursa Major (Great Bear / Big Dipper)',
+    type: 'constellation',
+    diameterKm: 0,
+    massKg: '—',
+    gravityMs2: 0,
+    dayLengthHours: 0,
+    orbitalPeriodDays: 0,
+    meanTemperatureC: 0,
+    moonsCount: 0,
+    axialTiltDeg: 0,
+    orbitalDistanceAU: 0,
+    visualRadius: 1,
+    visualDistance: 6500,
+    orbitalSpeed: 0,
+    rotationSpeed: 0,
+    color: '#60a5fa',
+    raHours: 12.1,
+    decDeg: 56.5,
+    brightestStar: 'Alioth (ε UMa · 1.77m) & Dubhe (α UMa)',
+    brightestStarVi: 'Alioth (ε UMa · 1.77m) & Dubhe (α UMa, sao chỉ Bắc Cực)',
+    brightestStarEn: 'Alioth (ε UMa · 1.77m) & Dubhe (α UMa, Polaris pointer)',
+    skyAreaDeg2: 1280,
+    skyRank: 3,
+    distanceLightYears: '78 – 124 ly',
+    distanceLightYearsVi: '78 – 124 năm a/s',
+    distanceLightYearsEn: '78 – 124 ly',
+    mainStarsCount: 7,
+    deepSkyObjects: 'Bode’s Galaxy (M81), Cigar Galaxy (M82), Pinwheel (M101)',
+    deepSkyObjectsVi: 'Cặp thiên hà Bode M81 & Xì Gà M82, Chong Chóng M101',
+    deepSkyObjectsEn: 'Bode’s Galaxy (M81), Cigar Galaxy (M82), Pinwheel (M101)',
+    hemisphereVi: 'Bắc thiên cầu (RA 12.1h · Dec +56°)',
+    hemisphereEn: 'Northern Sky (RA 12.1h · Dec +56°)',
+    bestSeasonVi: 'Tháng 3 – Tháng 6 (quanh năm ở Bắc bán cầu)',
+    bestSeasonEn: 'March – June (Circumpolar in Northern latitudes)',
+    mythologyVi: 'Nổi tiếng tại Á Đông với tên gọi Bắc Đẩu Thất Tinh (7 ngôi sao hình cái gáo). Kéo dài đoạn nối hai sao Dubhe và Merak gấp 5 lần sẽ chỉ thẳng tới Sao Bắc Cực (Polaris) để định hướng phương Bắc.',
+    mythologyEn: 'Home to the iconic seven-star Big Dipper asterism; extending the pointer stars Dubhe and Merak fivefold leads directly to Polaris, the North Star.',
+    neighborConstellations: ['constellation_leo', 'constellation_cassiopeia'],
+    description: 'Third-largest constellation in the sky, containing the seven-star Big Dipper navigation asterism and interacting galaxies M81 and M82.'
+  },
+  constellation_cassiopeia: {
+    id: 'constellation_cassiopeia',
+    name: 'Cassiopeia',
+    displayName: 'Cassiopeia (The Seated Queen)',
+    type: 'constellation',
+    diameterKm: 0,
+    massKg: '—',
+    gravityMs2: 0,
+    dayLengthHours: 0,
+    orbitalPeriodDays: 0,
+    meanTemperatureC: 0,
+    moonsCount: 0,
+    axialTiltDeg: 0,
+    orbitalDistanceAU: 0,
+    visualRadius: 1,
+    visualDistance: 6500,
+    orbitalSpeed: 0,
+    rotationSpeed: 0,
+    color: '#c084fc',
+    raHours: 1.05,
+    decDeg: 60.2,
+    brightestStar: 'Schedar (α Cas · 2.24m) & Caph (β Cas)',
+    brightestStarVi: 'Schedar (α Cas · 2.24m, sao cam khổng lồ) & Caph (β Cas)',
+    brightestStarEn: 'Schedar (α Cas · 2.24m, orange giant) & Caph (β Cas)',
+    skyAreaDeg2: 598,
+    skyRank: 25,
+    distanceLightYears: '55 – 613 ly',
+    distanceLightYearsVi: '55 – 613 năm a/s',
+    distanceLightYearsEn: '55 – 613 ly',
+    mainStarsCount: 5,
+    deepSkyObjects: 'Cassiopeia A Supernova Remnant, Open Cluster M52',
+    deepSkyObjectsVi: 'Tàn dư siêu tân tinh Cassiopeia A, Cụm sao mở M52',
+    deepSkyObjectsEn: 'Cassiopeia A Supernova Remnant, Open Cluster M52',
+    hemisphereVi: 'Bắc thiên cầu (RA 1.1h · Dec +60°)',
+    hemisphereEn: 'Northern Sky (RA 1.1h · Dec +60°)',
+    bestSeasonVi: 'Tháng 9 – Tháng 12 (nằm giữa dải Ngân Hà)',
+    bestSeasonEn: 'September – December (Embedded in the Milky Way)',
+    mythologyVi: 'Nữ hoàng xứ Aethiopia kiêu hãnh trong thần thoại Hy Lạp, dễ nhận biết ngay lập tức nhờ 5 ngôi sao sáng xếp hình chữ W hoặc chữ M đối diện Bắc Đẩu qua Sao Bắc Cực.',
+    mythologyEn: 'The boastful Queen of Aethiopia in Greek myth, instantly recognizable by its crisp five-star W asterism opposite the Big Dipper across Polaris.',
+    neighborConstellations: ['constellation_cygnus', 'constellation_ursa_major'],
+    description: 'Distinctive five-star W asterism straddling the rich northern Milky Way plane, hosting the famous supernova remnant Cassiopeia A.'
+  },
+  constellation_cygnus: {
+    id: 'constellation_cygnus',
+    name: 'Cygnus',
+    displayName: 'Cygnus (The Swan / Northern Cross)',
+    type: 'constellation',
+    diameterKm: 0,
+    massKg: '—',
+    gravityMs2: 0,
+    dayLengthHours: 0,
+    orbitalPeriodDays: 0,
+    meanTemperatureC: 0,
+    moonsCount: 0,
+    axialTiltDeg: 0,
+    orbitalDistanceAU: 0,
+    visualRadius: 1,
+    visualDistance: 6500,
+    orbitalSpeed: 0,
+    rotationSpeed: 0,
+    color: '#22d3ee',
+    raHours: 20.37,
+    decDeg: 40.3,
+    brightestStar: 'Deneb (α Cyg · 1.25m, Summer Triangle vertex)',
+    brightestStarVi: 'Deneb (α Cyg · 1.25m, đỉnh Tam Giác Mùa Hè)',
+    brightestStarEn: 'Deneb (α Cyg · 1.25m, Summer Triangle vertex)',
+    skyAreaDeg2: 804,
+    skyRank: 16,
+    distanceLightYears: '170 – 2,600 ly',
+    distanceLightYearsVi: '170 – 2.600 năm a/s',
+    distanceLightYearsEn: '170 – 2,600 ly',
+    mainStarsCount: 6,
+    deepSkyObjects: 'Cygnus X-1 Black Hole, North America Nebula (NGC 7000)',
+    deepSkyObjectsVi: 'Hố đen Cygnus X-1, Tinh vân Bắc Mỹ (NGC 7000)',
+    deepSkyObjectsEn: 'Cygnus X-1 Black Hole, North America Nebula (NGC 7000)',
+    hemisphereVi: 'Bắc thiên cầu (RA 20.4h · Dec +40°)',
+    hemisphereEn: 'Northern Sky (RA 20.4h · Dec +40°)',
+    bestSeasonVi: 'Tháng 7 – Tháng 10 (đỉnh cao bầu trời mùa Hè)',
+    bestSeasonEn: 'July – October (Summer Milky Way zenith)',
+    mythologyVi: 'Chim Thiên Nga sải cánh bay dọc sông Ngân Hà. Sao đuôi Deneb phát sáng gấp gần 200.000 lần Mặt Trời, còn cổ thiên nga chứa Cygnus X-1, hố đen sao đầu tiên được nhân loại xác nhận.',
+    mythologyEn: 'Soaring down the summer Milky Way; tail star Deneb shines ~200,000 times brighter than the Sun, while its neck harbors Cygnus X-1, the first confirmed stellar black hole.',
+    neighborConstellations: ['constellation_cassiopeia', 'constellation_scorpius'],
+    description: 'Graceful Northern Cross gliding along the Milky Way rift, home to supergiant Deneb and the historic black hole binary Cygnus X-1.'
+  },
+  constellation_scorpius: {
+    id: 'constellation_scorpius',
+    name: 'Scorpius',
+    displayName: 'Scorpius (The Scorpion)',
+    type: 'constellation',
+    diameterKm: 0,
+    massKg: '—',
+    gravityMs2: 0,
+    dayLengthHours: 0,
+    orbitalPeriodDays: 0,
+    meanTemperatureC: 0,
+    moonsCount: 0,
+    axialTiltDeg: 0,
+    orbitalDistanceAU: 0,
+    visualRadius: 1,
+    visualDistance: 6500,
+    orbitalSpeed: 0,
+    rotationSpeed: 0,
+    color: '#fb7185',
+    raHours: 16.65,
+    decDeg: -28.5,
+    brightestStar: 'Antares (α Sco · 1.06m, crimson red supergiant)',
+    brightestStarVi: 'Antares (α Sco · 1.06m, siêu sao đỏ khổng lồ)',
+    brightestStarEn: 'Antares (α Sco · 1.06m, crimson red supergiant)',
+    skyAreaDeg2: 497,
+    skyRank: 33,
+    distanceLightYears: '88 – 570 ly',
+    distanceLightYearsVi: '88 – 570 năm a/s',
+    distanceLightYearsEn: '88 – 570 ly',
+    mainStarsCount: 8,
+    deepSkyObjects: 'Globular Cluster M4, Butterfly (M6) & Ptolemy (M7) Clusters',
+    deepSkyObjectsVi: 'Cụm sao cầu M4, Cụm sao Bướm M6 & Ptolemy M7',
+    deepSkyObjectsEn: 'Globular Cluster M4, Butterfly (M6) & Ptolemy (M7) Clusters',
+    hemisphereVi: 'Nam Hoàng Đạo (RA 16.7h · Dec -29°)',
+    hemisphereEn: 'Southern Zodiac (RA 16.7h · Dec -29°)',
+    bestSeasonVi: 'Tháng 6 – Tháng 8 (sát trung tâm Ngân Hà)',
+    bestSeasonEn: 'June – August (Near the Galactic Center)',
+    mythologyVi: 'Con Bọ Cạp thần thoại đối đầu với thợ săn Orion nên hai chòm sao không bao giờ cùng mọc trên bầu trời: khi Thiên Yết ló dạng ở chân trời Đông thì Lạp Hộ lặn xuống chân trời Tây.',
+    mythologyEn: 'Mythic rival of Orion placed on the opposite side of the sky so Scorpius rises in the east just as Orion sets in the west, anchored by crimson supergiant Antares.',
+    neighborConstellations: ['constellation_crux', 'constellation_cygnus'],
+    description: 'Striking zodiacal constellation curving beside the Galactic Center, blazing with red supergiant Antares (“Rival of Mars”) and globular cluster M4.'
+  },
+  constellation_crux: {
+    id: 'constellation_crux',
+    name: 'Crux',
+    displayName: 'Crux (The Southern Cross)',
+    type: 'constellation',
+    diameterKm: 0,
+    massKg: '—',
+    gravityMs2: 0,
+    dayLengthHours: 0,
+    orbitalPeriodDays: 0,
+    meanTemperatureC: 0,
+    moonsCount: 0,
+    axialTiltDeg: 0,
+    orbitalDistanceAU: 0,
+    visualRadius: 1,
+    visualDistance: 6500,
+    orbitalSpeed: 0,
+    rotationSpeed: 0,
+    color: '#34d399',
+    raHours: 12.48,
+    decDeg: -59.8,
+    brightestStar: 'Acrux (α Cru · 0.76m) & Mimosa (β Cru)',
+    brightestStarVi: 'Acrux (α Cru · 0.76m, sao chỉ cực Nam) & Mimosa (β Cru)',
+    brightestStarEn: 'Acrux (α Cru · 0.76m, south pole pointer) & Mimosa (β Cru)',
+    skyAreaDeg2: 68,
+    skyRank: 88,
+    distanceLightYears: '88 – 320 ly',
+    distanceLightYearsVi: '88 – 320 năm a/s',
+    distanceLightYearsEn: '88 – 320 ly',
+    mainStarsCount: 4,
+    deepSkyObjects: 'Jewel Box Cluster (NGC 4755), Coalsack Dark Nebula',
+    deepSkyObjectsVi: 'Cụm sao Hộp Châu Báu (NGC 4755), Tinh vân tối Túi Than',
+    deepSkyObjectsEn: 'Jewel Box Cluster (NGC 4755), Coalsack Dark Nebula',
+    hemisphereVi: 'Nam thiên cầu sâu (RA 12.5h · Dec -60°)',
+    hemisphereEn: 'Deep Southern Sky (RA 12.5h · Dec -60°)',
+    bestSeasonVi: 'Tháng 4 – Tháng 7 (Nam bán cầu & vĩ độ thấp)',
+    bestSeasonEn: 'April – July (Southern Hemisphere & low latitudes)',
+    mythologyVi: 'Tuy nhỏ nhất trong 88 chòm sao hiện đại nhưng lại có mật độ sao sáng đặc biệt cao. Các nhà hàng hải phương Nam nối trục dài từ Gacrux qua Acrux để tìm Thiên cực Nam.',
+    mythologyEn: 'Smallest of all 88 IAU constellations yet packed with first-magnitude stars; mariners project its long axis 4.5 times southward to locate the South Celestial Pole.',
+    neighborConstellations: ['constellation_scorpius', 'constellation_leo'],
+    description: 'Smallest yet most iconic southern constellation, guiding navigators toward the South Celestial Pole beside the Jewel Box cluster and Coalsack Nebula.'
+  },
+  constellation_leo: {
+    id: 'constellation_leo',
+    name: 'Leo',
+    displayName: 'Leo (The Lion)',
+    type: 'constellation',
+    diameterKm: 0,
+    massKg: '—',
+    gravityMs2: 0,
+    dayLengthHours: 0,
+    orbitalPeriodDays: 0,
+    meanTemperatureC: 0,
+    moonsCount: 0,
+    axialTiltDeg: 0,
+    orbitalDistanceAU: 0,
+    visualRadius: 1,
+    visualDistance: 6500,
+    orbitalSpeed: 0,
+    rotationSpeed: 0,
+    color: '#fbbf24',
+    raHours: 10.9,
+    decDeg: 16.5,
+    brightestStar: 'Regulus (α Leo · 1.36m, quadruple Heart of the Lion)',
+    brightestStarVi: 'Regulus (α Leo · 1.36m, hệ 4 sao Trái Tim Sư Tử)',
+    brightestStarEn: 'Regulus (α Leo · 1.36m, quadruple Heart of the Lion)',
+    skyAreaDeg2: 947,
+    skyRank: 12,
+    distanceLightYears: '36 – 260 ly (Regulus 79 ly)',
+    distanceLightYearsVi: '36 – 260 năm a/s (Regulus 79 năm a/s)',
+    distanceLightYearsEn: '36 – 260 ly (Regulus 79 ly)',
+    mainStarsCount: 9,
+    deepSkyObjects: 'Leo Triplet Spiral Galaxies (M65, M66, NGC 3628)',
+    deepSkyObjectsVi: 'Bộ ba thiên hà xoắn Leo Triplet (M65, M66, NGC 3628)',
+    deepSkyObjectsEn: 'Leo Triplet Spiral Galaxies (M65, M66, NGC 3628)',
+    hemisphereVi: 'Hoàng Đạo Bắc (RA 10.9h · Dec +17°)',
+    hemisphereEn: 'Northern Zodiac (RA 10.9h · Dec +17°)',
+    bestSeasonVi: 'Tháng 3 – Tháng 5 (tâm mưa sao băng Leonids tháng 11)',
+    bestSeasonEn: 'March – May (Radiant of November Leonids)',
+    mythologyVi: 'Hiện thân của Sư tử Nemean bất khả xâm phạm trong kỳ công đầu tiên của dũng sĩ Heracles. Khối tứ giác thân Sư Tử nối từ sao xanh trắng Regulus tới sao đuôi Denebola là dấu mốc mùa Xuân cổ xưa.',
+    mythologyEn: 'Represents the Nemean Lion of Heracles’ first labor; its trapezoid body anchored by rapid-spinning blue-white Regulus and Denebola heralds the northern spring.',
+    neighborConstellations: ['constellation_ursa_major', 'constellation_orion', 'constellation_taurus'],
+    description: 'Ancient zodiacal Lion anchored by blue-white Regulus, the Sickle mane asterism, and the gravitationally interacting Leo Triplet of spiral galaxies.'
+  },
+  constellation_taurus: {
+    id: 'constellation_taurus',
+    name: 'Taurus',
+    displayName: 'Taurus (The Bull & Pleiades)',
+    type: 'constellation',
+    diameterKm: 0,
+    massKg: '—',
+    gravityMs2: 0,
+    dayLengthHours: 0,
+    orbitalPeriodDays: 0,
+    meanTemperatureC: 0,
+    moonsCount: 0,
+    axialTiltDeg: 0,
+    orbitalDistanceAU: 0,
+    visualRadius: 1,
+    visualDistance: 6500,
+    orbitalSpeed: 0,
+    rotationSpeed: 0,
+    color: '#f59e0b',
+    raHours: 4.55,
+    decDeg: 18.8,
+    brightestStar: 'Aldebaran (α Tau · 0.86m, fiery orange Eye of the Bull)',
+    brightestStarVi: 'Aldebaran (α Tau · 0.86m, mắt cam đỏ Kim Ngưu)',
+    brightestStarEn: 'Aldebaran (α Tau · 0.86m, fiery orange Eye of the Bull)',
+    skyAreaDeg2: 797,
+    skyRank: 17,
+    distanceLightYears: '65 – 444 ly',
+    distanceLightYearsVi: '65 – 444 năm a/s',
+    distanceLightYearsEn: '65 – 444 ly',
+    mainStarsCount: 7,
+    deepSkyObjects: 'Pleiades Seven Sisters (M45), Crab Nebula Pulsar Remnant (M1)',
+    deepSkyObjectsVi: 'Cụm sao Tua Rua Pleiades (M45), Tinh vân Con Cua (M1)',
+    deepSkyObjectsEn: 'Pleiades Seven Sisters (M45), Crab Nebula Pulsar Remnant (M1)',
+    hemisphereVi: 'Hoàng Đạo Bắc (RA 4.6h · Dec +19°)',
+    hemisphereEn: 'Northern Zodiac (RA 4.6h · Dec +19°)',
+    bestSeasonVi: 'Tháng 11 – Tháng 2 (rực rỡ đầu đông)',
+    bestSeasonEn: 'November – February (Early winter zenith)',
+    mythologyVi: 'Chòm Kim Ngưu cổ đại từ thời Đồ Đồng, nổi bật với chữ V của cụm sao Hyades quanh sao cam khổng lồ Aldebaran, cụm Thất Nữ Tua Rua (Pleiades M45) và Tinh vân Con Cua M1 chứa sao xung quay 30 vòng/giây.',
+    mythologyEn: 'Bronze-Age zodiacal Bull featuring the V-shaped Hyades face around orange giant Aldebaran, the Pleiades (M45) Seven Sisters, and the Crab Nebula (M1) pulsar remnant.',
+    neighborConstellations: ['constellation_orion', 'constellation_leo'],
+    description: 'Historic zodiacal Bull home to fiery orange giant Aldebaran, the jewel-like Pleiades star cluster (M45), and the Crab Nebula supernova remnant (M1).'
   }
 };
+
+export const CONSTELLATION_KEYS = [
+  'constellation_orion',
+  'constellation_ursa_major',
+  'constellation_cassiopeia',
+  'constellation_cygnus',
+  'constellation_scorpius',
+  'constellation_crux',
+  'constellation_leo',
+  'constellation_taurus'
+] as const;
+
+export const SPACECRAFT_KEYS = ['iss', 'jwst', 'voyager1', 'voyager2'] as const;
 
 export const PLANET_KEYS = [
   'mercury',
@@ -583,6 +1050,8 @@ export const ALL_CELESTIAL_KEYS = [
   'sun',
   ...PLANET_KEYS,
   ...MOON_KEYS,
+  ...SPACECRAFT_KEYS,
+  ...CONSTELLATION_KEYS,
   'blackhole',
   'pulsar'
 ] as const;
@@ -593,6 +1062,7 @@ export interface LocalizedCelestialBodyData extends Omit<CelestialBodyData, 'typ
 
 export function getLocalizedBodyData(id: string): LocalizedCelestialBodyData {
   const base = CELESTIAL_BODIES[id] || CELESTIAL_BODIES.sun;
+  const isVi = useI18nStore.getState().language === 'vi';
 
   const name = t(`celestial.${id}.name`);
   const displayName = t(`celestial.${id}.displayName`);
@@ -604,7 +1074,11 @@ export function getLocalizedBodyData(id: string): LocalizedCelestialBodyData {
     name: name.startsWith('celestial.') ? (base?.name || id) : name,
     displayName: displayName.startsWith('celestial.') ? (base?.displayName || id) : displayName,
     type: type.startsWith('celestial.') ? (base?.type || 'celestial') : type,
-    description: description.startsWith('celestial.') ? (base?.description || '') : description
+    description: description.startsWith('celestial.') ? (base?.description || '') : description,
+    brightestStar: (isVi ? base?.brightestStarVi : base?.brightestStarEn) ?? base?.brightestStar,
+    deepSkyObjects: (isVi ? base?.deepSkyObjectsVi : base?.deepSkyObjectsEn) ?? base?.deepSkyObjects,
+    distanceLightYears:
+      (isVi ? base?.distanceLightYearsVi : base?.distanceLightYearsEn) ?? base?.distanceLightYears
   };
 }
 

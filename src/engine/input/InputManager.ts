@@ -8,6 +8,8 @@ export class InputManager {
   public deltaY = 0;
   public isPointerDown = false;
 
+  private lastClientX = 0;
+  private lastClientY = 0;
   private isListening = false;
 
   private constructor() {
@@ -29,6 +31,11 @@ export class InputManager {
     window.addEventListener('pointermove', this.handlePointerMove);
     window.addEventListener('pointerdown', this.handlePointerDown);
     window.addEventListener('pointerup', this.handlePointerUp);
+    window.addEventListener('pointercancel', this.handleResetState);
+    window.addEventListener('blur', this.handleResetState);
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    }
 
     this.isListening = true;
   }
@@ -41,14 +48,34 @@ export class InputManager {
     window.removeEventListener('pointermove', this.handlePointerMove);
     window.removeEventListener('pointerdown', this.handlePointerDown);
     window.removeEventListener('pointerup', this.handlePointerUp);
+    window.removeEventListener('pointercancel', this.handleResetState);
+    window.removeEventListener('blur', this.handleResetState);
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    }
 
     this.isListening = false;
   }
 
+  private handleResetState = (): void => {
+    this.keys = {};
+    this.isPointerDown = false;
+    this.resetDeltas();
+  };
+
+  private handleVisibilityChange = (): void => {
+    if (typeof document !== 'undefined' && document.hidden) {
+      this.handleResetState();
+    }
+  };
+
   private handleKeyDown = (e: KeyboardEvent): void => {
-    // Avoid capturing inputs if typing inside an input element or textarea
-    const target = e.target as HTMLElement;
-    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+    // Avoid capturing inputs if typing inside form fields or using OS/browser modifier shortcuts
+    const target = e.target as HTMLElement | null;
+    if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+    if (e.metaKey) return;
+    // Allow standalone Control/Alt precision flight keys while ignoring browser combos (Ctrl+R, Ctrl+K, Alt+Left)
+    if ((e.ctrlKey || e.altKey) && e.key !== 'Control' && e.key !== 'Alt') return;
 
     this.keys[e.key.toLowerCase()] = true;
     this.keys[e.code] = true;
@@ -60,13 +87,29 @@ export class InputManager {
   };
 
   private handlePointerMove = (e: PointerEvent): void => {
-    this.deltaX = e.movementX || 0;
-    this.deltaY = e.movementY || 0;
+    const hasPointerLock = typeof document !== 'undefined' && !!document.pointerLockElement;
+    if (hasPointerLock) {
+      this.deltaX += e.movementX || 0;
+      this.deltaY += e.movementY || 0;
+    } else if (this.isPointerDown) {
+      this.deltaX += e.clientX - this.lastClientX;
+      this.deltaY += e.clientY - this.lastClientY;
+    }
+    this.lastClientX = e.clientX;
+    this.lastClientY = e.clientY;
     this.pointerX = (e.clientX / window.innerWidth) * 2 - 1;
     this.pointerY = -(e.clientY / window.innerHeight) * 2 + 1;
   };
 
-  private handlePointerDown = (): void => {
+  private handlePointerDown = (e: PointerEvent): void => {
+    const target = e.target as HTMLElement | null;
+    // Ignore pointer drags initiated on HUD/SuperNav controls; only canvas drags steer Free Flight look
+    if (target && typeof target.tagName === 'string' && target.tagName !== 'CANVAS') {
+      this.isPointerDown = false;
+      return;
+    }
+    this.lastClientX = e.clientX;
+    this.lastClientY = e.clientY;
     this.isPointerDown = true;
   };
 

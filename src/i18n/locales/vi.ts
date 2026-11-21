@@ -15,13 +15,14 @@ export const vi: TranslationSchema = {
   nav: {
     explore: 'Khám Phá',
     planets: 'Hành Tinh',
+    constellations: 'Chòm Sao',
     blackHole: 'Hố Đen',
     galaxy: 'Thiên Hà',
     flight: 'Phi Thuyền',
     tour: 'Tham Quan',
     cinema: 'Điện Ảnh',
     land: 'Đổ Bộ',
-    wormhole: 'Lỗ Giun',
+    wormhole: 'Lỗ Sâu 4D',
     sandbox: 'Hộp Cát',
     tars: 'TARS AI',
     scale: 'Thước Đo',
@@ -161,6 +162,78 @@ export const vi: TranslationSchema = {
       displayName: 'PSR B1257+12 (Sao Neutron Pulsar)',
       type: 'Sao Neutron',
       description: 'Ngôi sao neutron quay hàng trăm vòng mỗi giây với từ trường cực mạnh, phát ra hai chùm tia bức xạ vô tuyến quét qua vũ trụ như ngọn hải đăng vĩnh cửu.'
+    },
+    iss: {
+      name: 'Trạm Vũ Trụ ISS',
+      displayName: 'Trạm Vũ Trụ Quốc Tế (ISS)',
+      type: 'Trạm Không Gian',
+      description: 'Phòng thí nghiệm không gian thường trực lớn nhất của nhân loại ở độ cao 420 km, quay quanh Trái Đất 15,5 vòng mỗi ngày với vận tốc 27.600 km/h.'
+    },
+    jwst: {
+      name: 'Kính James Webb',
+      displayName: 'Kính Viễn Vọng Không Gian James Webb (JWST)',
+      type: 'Đài Quan Sát L2',
+      description: 'Đài quan sát hồng ngoại sâu hoạt động tại điểm cân bằng hấp dẫn L2 cách Trái Đất 1,5 triệu km, trang bị cụm 18 gương lục giác mạ vàng siêu chính xác.'
+    },
+    voyager1: {
+      name: 'Tàu Voyager 1',
+      displayName: 'Tàu Thăm Dò Liên Sao Voyager 1',
+      type: 'Tàu Liên Sao',
+      description: 'Vật thể nhân tạo bay xa nhất trong lịch sử loài người (163 AU), đã vượt qua biên giới nhật quyển tiến vào môi trường liên sao cùng Đĩa Vàng thông điệp Trái Đất.'
+    },
+    voyager2: {
+      name: 'Tàu Voyager 2',
+      displayName: 'Tàu Thăm Dò Liên Hành Tinh Voyager 2',
+      type: 'Tàu Liên Sao',
+      description: 'Phi thuyền duy nhất từng ghé thăm cả bốn hành tinh khổng lồ vòng ngoài (Sao Mộc, Sao Thổ, Sao Thiên Vương, Sao Hải Vương) và hiện đang bay trong không gian liên sao.'
+    },
+    constellation_orion: {
+      name: 'Lạp Hộ (Orion)',
+      displayName: 'Chòm Sao Lạp Hộ (Orion)',
+      type: 'Chòm Sao',
+      description: 'Viên ngọc sáng nhất bầu trời đêm mùa Đông với ba ngôi sao Đai Lưng thẳng tắp, siêu sao xanh Rigel, siêu sao đỏ Betelgeuse và vườn ươm sao Tinh vân Orion (M42).'
+    },
+    constellation_ursa_major: {
+      name: 'Đại Hùng (Bắc Đẩu)',
+      displayName: 'Chòm Sao Đại Hùng · Bắc Đẩu (Ursa Major)',
+      type: 'Chòm Sao',
+      description: 'Chòm sao lớn thứ ba trên bầu trời, nổi tiếng với mảng 7 ngôi sao Bắc Đẩu Thất Tinh giúp định vị Sao Bắc Cực (Polaris) và cặp thiên hà tương tác M81 – M82.'
+    },
+    constellation_cassiopeia: {
+      name: 'Thiên Hậu (Cassiopeia)',
+      displayName: 'Chòm Sao Thiên Hậu (Cassiopeia)',
+      type: 'Chòm Sao',
+      description: 'Mảng 5 ngôi sao xếp hình chữ W nổi bật vắt ngang dải Ngân Hà phương Bắc, chứa tàn dư siêu tân tinh phát xạ tia X mạnh bậc nhất Cassiopeia A.'
+    },
+    constellation_cygnus: {
+      name: 'Thiên Nga (Cygnus)',
+      displayName: 'Chòm Sao Thiên Nga · Thập Tự Bắc (Cygnus)',
+      type: 'Chòm Sao',
+      description: 'Hình chim Thiên Nga sải cánh dọc sông Ngân Hà mùa Hè, quy tụ siêu sao trắng Deneb và nguồn hố đen sao đầu tiên được xác nhận trong lịch sử Cygnus X-1.'
+    },
+    constellation_scorpius: {
+      name: 'Thiên Yết (Scorpius)',
+      displayName: 'Chòm Sao Thiên Yết · Bọ Cạp (Scorpius)',
+      type: 'Chòm Sao',
+      description: 'Chòm sao Hoàng Đạo phương Nam uốn cong sát hướng tâm Dải Ngân Hà, rực sáng với siêu sao đỏ khổng lồ Antares ("Đối thủ của Sao Hỏa") và cụm sao cầu M4.'
+    },
+    constellation_crux: {
+      name: 'Nam Thập Tự (Crux)',
+      displayName: 'Chòm Sao Nam Thập Tự (Crux)',
+      type: 'Chòm Sao',
+      description: 'Chòm sao nhỏ nhất trong 88 chòm sao hiện đại nhưng rực rỡ bậc nhất bầu trời Nam bán cầu, đóng vai trò la bàn dẫn hướng tới Thiên cực Nam cạnh cụm sao Hộp Châu Báu.'
+    },
+    constellation_leo: {
+      name: 'Sư Tử (Leo)',
+      displayName: 'Chòm Sao Sư Tử (Leo)',
+      type: 'Chòm Sao',
+      description: 'Chòm sao Hoàng Đạo mùa Xuân nổi bật với mảng tứ giác thân Sư Tử và lưỡi liềm Bờm Sư Tử quanh sao xanh trắng Regulus cùng bộ ba thiên hà xoắn Leo Triplet (M65, M66).'
+    },
+    constellation_taurus: {
+      name: 'Kim Ngưu (Taurus)',
+      displayName: 'Chòm Sao Kim Ngưu & Tua Rua (Taurus)',
+      type: 'Chòm Sao',
+      description: 'Chòm sao Hoàng Đạo cổ xưa mang mắt cam khổng lồ Aldebaran, cụm sao Thất Nữ Tua Rua (Pleiades M45) đẹp lộng lẫy và tàn dư siêu tân tinh Tinh vân Con Cua (M1).'
     }
   },
   targetHud: {
@@ -170,6 +243,14 @@ export const vi: TranslationSchema = {
     knownMoons: 'Mặt Trăng',
     orbitPeriod: 'Chu Kỳ Quỹ Đạo',
     pulsarPlanets: 'Ngoại Hành Tinh',
+    brightestStar: 'Sao Sáng Nhất',
+    skyArea: 'Diện Tích Trời',
+    starDistance: 'Khoảng Cách Sao',
+    deepSkyObjects: 'Vật Thể Sâu (DSO)',
+    constellationDossier: 'Review Thần Thoại & Cẩm Nang Quan Sát',
+    mythologyHeading: 'Điển Tích Thần Thoại & Nhận Diện',
+    bestSeasonHeading: 'Mùa Quan Sát Lý Tưởng',
+    neighborConstellationsHeading: 'Chòm Sao Lân Cận (Nhấp Để Xoay Tới)',
     focusTarget: 'Khóa góc nhìn camera vào thiên thể',
     supermassiveSingularity: 'Điểm Dị Thường Siêu Khối Lượng (Không Gian Sâu)',
     neutronStar: 'Sao Neutron Phát Xạ Tương Đối Tính',
@@ -317,5 +398,75 @@ export const vi: TranslationSchema = {
     cmdOrbits: 'Bật/Tắt Đường Quỹ Đạo',
     cmdSound: 'Bật/Tắt Âm Thanh Không Gian',
     cmdUltraGraphics: 'Đồ họa: Thiết lập ULTRA'
+  },
+  vip: {
+    starMapLabel: 'Bản Đồ Sao',
+    starMapTooltip: 'Bật/Tắt Bản Đồ Chòm Sao 3D & Vành Đai Sự Sống Goldilocks',
+    radarTitle: 'RADAR QUỸ ĐẠO',
+    radarExpand: 'Mở Radar Quỹ Đạo',
+    radarCollapse: 'Thu gọn Radar',
+    lightDelay: 'Trễ Ánh Sáng',
+    earthGravityRatio: 'So Với Trái Đất',
+    deepDossier: 'Hồ Sơ Vật Lý Chuyên Sâu',
+    hideDossier: 'Thu Gọn Hồ Sơ',
+    mass: 'Khối Lượng',
+    dayLength: 'Chu Kỳ Tự Quay',
+    axialTilt: 'Độ Nghiêng Trục',
+    moonsHeading: 'Vệ Tinh Tự Nhiên (Nhấp Để Bay Tới)',
+    saveView: 'Lưu Góc Máy',
+    savedViews: 'Góc Máy VIP Đã Lưu',
+    noSavedViews: 'Chưa lưu góc máy nào',
+    quickLandMars: 'Đổ Bộ Sao Hỏa 3D',
+    quickLandMoon: 'Đổ Bộ Mặt Trăng 3D',
+    quickLaunchRocket: 'Phóng Tàu Vũ Trụ 3D',
+    quickEarthHistory: 'Lịch Sử Trái Đất 4.54 Ga',
+    quickRingSki: 'Bay Lướt Vành Đai',
+    quickWormhole: 'Vượt Lỗ Sâu 4D',
+    quickSlingshot: 'Trợ Lực Trọng Trường'
+  },
+  cosmic: {
+    sectionTitle: 'Đài Thiên Văn & Phòng Thí Nghiệm 3D Mới',
+    solarStormTitle: 'Bão Mặt Trời, Từ Quyển & Cực Quang 3D',
+    solarStormSub: 'Luồng CME, lá chắn từ trường & cực quang 2 cực',
+    eclipseTitle: 'Nhật Thực Toàn Phần & Trăng Máu 3D',
+    eclipseSub: 'Nhẫn Kim Cương, Nhật Hoa, Bóng Umbra & Trăng Máu',
+    binaryMergerTitle: 'Hợp Nhất Hai Hố Đen & Sóng Hấp Dẫn',
+    binaryMergerSub: 'Biến dạng không-thời gian & tiếng chirp LIGO',
+    landEuropaTitle: 'Đổ Bộ Vệ Tinh Băng Europa 3D',
+    landEuropaSub: 'Vỏ băng nứt, mạch phun hơi nước & Sao Mộc',
+    landTitanTitle: 'Đổ Bộ Mặt Trăng Titan 3D',
+    landTitanSub: 'Sương cam dày đặc, hồ metan & tàu Huygens',
+    hohmannTitle: 'Hoạch Định & Phóng Tàu Quỹ Đạo Hohmann',
+    hohmannSub: 'Tính Δv địa tâm/nhật tâm & Gravity Assist',
+    stellarLabTitle: 'Tinh Vân 3D & Vòng Đời Ngôi Sao',
+    stellarLabSub: 'Cột Trụ Sáng Tạo M16, M1 & biểu đồ H-R sống',
+    planetariumTitle: 'Đài Thiên Văn 360° & Kính Thiên Văn',
+    planetariumSub: 'Bầu trời theo tọa độ, Mưa Sao Băng & Zoom FOV',
+    megaHubTitle: 'Trung Tâm Khám Phá Vũ Trụ',
+    megaHubSearch: 'Tìm phòng thí nghiệm, hành tinh, công cụ (gõ không dấu)...',
+    megaHubRecent: 'Mở gần đây',
+    megaHubEmpty: 'Không tìm thấy trải nghiệm phù hợp.',
+    tabAll: 'Tất Cả',
+    tabPhysics: 'Vật Lý & Hố Đen',
+    tabSurfaces: 'Đổ Bộ & Bề Mặt',
+    tabPlanets: 'Hành Tinh & Kiến Tạo',
+    tabDeepSpace: 'Thiên Hà & Vũ Trụ Sâu',
+    tabTools: 'Công Cụ & Điện Ảnh',
+    nbodyTitle: 'Bài Toán 3 Vật Thể & N-Body 3D',
+    nbodySub: 'Tam Thể hỗn loạn, quỹ đạo số 8, Vùng Ở Được & Giới hạn Roche',
+    marsTerraformTitle: 'Địa Cầu Hóa Sao Hỏa 1.000 Năm',
+    marsTerraformSub: 'Tan băng cực, đại dương phương Bắc, mây & sinh quyển sống',
+    cutawayTitle: 'Giải Phẫu Nội Tại Hành Tinh & Ngôi Sao',
+    cutawaySub: 'Cắt lát 3D Trái Đất, Mặt Trời, Sao Mộc, Europa & Sao Neutron',
+    defenseTitle: 'Phòng Thủ Hành Tinh · DART & Apophis',
+    defenseSub: 'Đâm động năng, Đầu kéo hấp dẫn & Tia laser làm lệch tiểu hành tinh',
+    trappistTitle: 'Hệ Ngoại Hành Tinh TRAPPIST-1 & Transit',
+    trappistSub: '7 hành tinh cỡ Trái Đất, góc nhìn bề mặt 1e & đường cong sáng',
+    dysonTitle: 'Cầu Dyson & Trụ Không Gian O’Neill',
+    dysonSub: 'Triển khai bầy gương thu năng lượng Kardashev & trụ quay 1g',
+    relativityTitle: 'Thuyết Tương Đối, Vòng Einstein & Rơi Hố Đen',
+    relativitySub: 'Đồng hồ giãn nở thời gian, thấu kính hấp dẫn & góc nhìn rơi tự do',
+    kesslerTitle: 'Hội Chứng Kessler & Vệ Tinh Quỹ Đạo LEO',
+    kesslerSub: 'Hơn 2.000 vệ tinh LEO/MEO/GEO & va chạm rác vũ trụ dây chuyền'
   }
 };

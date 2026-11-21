@@ -22,50 +22,51 @@ void main() {
   float NdotL = max(dot(norm, sunDir), 0.0);
   float dayLighting = smoothstep(0.0, 0.25, NdotL);
 
-  // Ring Shadow calculation: Ray from fragment toward Sun intersecting the ring plane
+  // Derivative-filtered Cassini ring shadow with solar penumbra softening at grazing sun angles
   float denom = dot(sunDir, uRingNormal);
   float ringShadow = 1.0;
 
-  if (abs(denom) > 0.001) {
-    // Distance from fragment to ring plane along Sun ray
+  if (abs(denom) > 0.002) {
     float t = dot(uPlanetCenter - vWorldPosition, uRingNormal) / denom;
     if (t > 0.0) {
       vec3 intersectPoint = vWorldPosition + sunDir * t;
       float r = length(intersectPoint - uPlanetCenter);
-      if (r >= uRingInnerRadius && r <= uRingOuterRadius) {
-        float normR = (r - uRingInnerRadius) / max(0.001, (uRingOuterRadius - uRingInnerRadius));
-        
-        // Multi-tier ring shadow density based on Cassini structure
-        if (normR >= 0.72 && normR <= 0.77) {
-          // Cassini Division allows sunlight to stream through
-          ringShadow = 0.88;
-        } else if (normR > 0.905 && normR < 0.925) {
-          // Encke Gap
-          ringShadow = 0.82;
-        } else if (normR >= 0.38 && normR < 0.72) {
-          // Ring B casts dense dark shadow
-          ringShadow = 0.18;
-        } else if (normR >= 0.77 && normR <= 0.96) {
-          // Ring A casts medium shadow
-          ringShadow = 0.35;
-        } else if (normR >= 0.15 && normR < 0.38) {
-          // Ring C casts soft translucent shadow
-          ringShadow = 0.58;
-        } else {
-          ringShadow = 0.85;
-        }
+      float normR = (r - uRingInnerRadius) / max(0.001, (uRingOuterRadius - uRingInnerRadius));
+      float fw = clamp(fwidth(normR) * 1.65, 0.005, 0.24);
+
+      if (normR > -fw && normR < 1.0 + fw) {
+        float cRing = smoothstep(0.14 - fw, 0.2 + fw, normR) * (1.0 - smoothstep(0.38 - fw, 0.38 + fw, normR));
+        float bRing = smoothstep(0.38 - fw, 0.38 + fw, normR) * (1.0 - smoothstep(0.715 - fw, 0.725 + fw, normR));
+        float aRing = smoothstep(0.768 - fw, 0.778 + fw, normR) * (1.0 - smoothstep(0.955 - fw, 0.965 + fw, normR));
+        float enckeGap = smoothstep(0.902 - fw, 0.908 + fw, normR) * (1.0 - smoothstep(0.922 - fw, 0.928 + fw, normR));
+        float outerEnvelope = smoothstep(0.0, 0.05 + fw, normR) * (1.0 - smoothstep(0.95 - fw, 1.0 + fw, normR));
+
+        float opticalBlock = (cRing * 0.40 + bRing * 0.78 + aRing * 0.62 * (1.0 - enckeGap * 0.72)) * outerEnvelope;
+        float rawShadow = 1.0 - clamp(opticalBlock, 0.0, 0.80);
+
+        // Grazing solar-elevation penumbra softening (eliminates sub-pixel equatorial staircase seam)
+        float grazingSoft = smoothstep(0.03, 0.18, abs(denom));
+        ringShadow = mix(1.0, rawShadow, grazingSoft);
       }
     }
   }
 
   // Atmospheric limb brightening & darkening
   vec3 viewDir = normalize(cameraPosition - vWorldPosition);
-  float limb = pow(max(dot(norm, viewDir), 0.0), 0.38);
+  float nDotV = max(dot(norm, viewDir), 0.0);
+  float limb = pow(nDotV, 0.36);
 
-  // Subtle golden atmospheric haze
-  vec3 atmosphericHaze = vec3(0.9, 0.78, 0.55) * pow(1.0 - max(dot(norm, viewDir), 0.0), 3.0) * 0.35;
+  // Authentic Cassini Kronian "ring-shine": sunlight scattered off icy B/A rings illuminating Saturn's night hemisphere
+  float latFromRing = abs(dot(norm, normalize(uRingNormal)));
+  float ringViewZone = smoothstep(0.04, 0.55, latFromRing) * (1.0 - smoothstep(0.55, 0.98, latFromRing));
+  float nightMask = 1.0 - smoothstep(-0.15, 0.28, dot(norm, sunDir));
+  float ringShine = (0.065 + 0.14 * ringViewZone) * nightMask;
 
-  vec3 finalColor = surfaceColor * (dayLighting * ringShadow * limb + 0.06) + atmosphericHaze * dayLighting;
+  // Golden-blue Rayleigh atmospheric limb haze
+  float fresnelRim = pow(1.0 - nDotV, 3.2);
+  vec3 atmosphericHaze = mix(vec3(0.42, 0.58, 0.85), vec3(0.95, 0.82, 0.58), dayLighting) * fresnelRim * (0.14 + 0.26 * dayLighting);
+
+  vec3 finalColor = surfaceColor * (dayLighting * ringShadow * limb + ringShine + 0.035) + atmosphericHaze;
 
   gl_FragColor = vec4(finalColor, 1.0);
 }

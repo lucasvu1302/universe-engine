@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import gsap from 'gsap';
-import { CameraMode, useAppStore } from '@/stores/useAppStore';
+import { ActiveCosmicLab, ActiveSurface, CameraMode, useAppStore } from '@/stores/useAppStore';
 import { CELESTIAL_BODIES } from '@/data/celestialData';
 import { SimulationClock } from '@/engine/simulation/SimulationClock';
 import { AudioManager } from '@/engine/audio/AudioManager';
@@ -19,6 +18,7 @@ export class CameraManager {
   public camera: THREE.PerspectiveCamera | null = null;
   public state: CameraMode = 'ORBIT';
   public activeFocusId: string | null = null;
+  public activeScenario: 'earth_launch' | 'earth_history' | 'cosmic_history' | 'none' = 'none';
 
   // Orbit controls state
   public target = new THREE.Vector3(0, 0, 0);
@@ -27,20 +27,49 @@ export class CameraManager {
   public spherical = new THREE.Spherical(180, Math.PI / 3.2, Math.PI / 4);
   public targetSpherical = new THREE.Spherical(180, Math.PI / 3.2, Math.PI / 4);
 
-  // Free Flight physics state
+  // Free Flight physics & damped zero-roll look state
   public velocity = new THREE.Vector3();
   public maxSpeed = 120.0;
   public acceleration = 85.0;
   public drag = 0.92;
   public euler = new THREE.Euler(0, 0, 0, 'YXZ');
+  private flightModeInitialized = false;
+  private flightYaw = 0;
+  private flightPitch = 0;
+  private flightTargetYaw = 0;
+  private flightTargetPitch = 0;
 
-  // Active GSAP timeline for cancel-safe transitions
-  private currentTween: gsap.core.Timeline | null = null;
+  // Unified in-frame Bezier transition & live moving-body tracking state (zero dual-rAF desync!)
+  private transitionActive = false;
+  private transitionElapsed = 0;
+  private transitionDuration = 2.0;
+  private transitionOnComplete: (() => void) | null = null;
+  private tweenFocusId: string | null = null;
+  private prevHostAzimuth: number | null = null;
+  private prevSimTimeForOrbit: number | null = null;
+  private prevFocusIdForAzimuth: string | null = null;
+  private readonly tweenRelativeOffset = new THREE.Vector3();
+  private readonly tweenStartPos = new THREE.Vector3();
+  private readonly tweenStartTarget = new THREE.Vector3();
+  private readonly tweenDestTarget = new THREE.Vector3();
+  private tweenCurve: THREE.QuadraticBezierCurve3 | null = null;
 
   // Scratch vectors for zero allocation
   private readonly tempVec = new THREE.Vector3();
+  private readonly relCurScratch = new THREE.Vector3();
+  private readonly relTgtScratch = new THREE.Vector3();
+  private readonly issOrbitAxis = new THREE.Vector3(
+    0,
+    -Math.cos(THREE.MathUtils.degToRad(51.6)),
+    -Math.sin(THREE.MathUtils.degToRad(51.6))
+  ).normalize();
   private readonly moveDir = new THREE.Vector3();
   private readonly parentScratch = new THREE.Vector3();
+  private readonly orbitFocusPos = new THREE.Vector3();
+  private readonly issZenithScratch = new THREE.Vector3();
+  private readonly issTangentScratch = new THREE.Vector3();
+  private readonly panRight = new THREE.Vector3();
+  private readonly panUp = new THREE.Vector3();
 
   private constructor() {}
 
@@ -61,41 +90,53 @@ export class CameraManager {
    * Calculates the exact real-time world position of any celestial body (planet, moon, or black hole).
    */
   public getLiveBodyPosition(id: string, target = new THREE.Vector3()): THREE.Vector3 {
+    const out = target;
     const data = CELESTIAL_BODIES[id];
     if (!data) {
-      return target.set(0, 0, 0);
+      return out.set(0, 0, 0);
     }
 
     if (id === 'sun') {
-      return target.set(0, 0, 0);
+      return out.set(0, 0, 0);
     }
 
     if (id === 'blackhole') {
-      return target.set(0, 180, -1200);
+      return out.set(0, 180, -1200);
     }
 
     if (id === 'pulsar') {
-      return target.set(-650, 220, -750);
+      return out.set(-650, 220, -750);
     }
 
     if (id === 'iss') {
       const earthPos = this.getLiveBodyPosition('earth', this.parentScratch);
       const simTime = SimulationClock.getInstance().simulationTime;
-      return SpacecraftEphemeris.getInstance().getISSPosition(simTime, earthPos, target);
+      return SpacecraftEphemeris.getInstance().getISSPosition(simTime, earthPos, out);
     }
 
     if (id === 'jwst') {
       const earthPos = this.getLiveBodyPosition('earth', this.parentScratch);
       const simTime = SimulationClock.getInstance().simulationTime;
-      return SpacecraftEphemeris.getInstance().getJWSTPosition(simTime, earthPos, target);
+      return SpacecraftEphemeris.getInstance().getJWSTPosition(simTime, earthPos, out);
     }
 
     if (id === 'voyager1') {
-      return SpacecraftEphemeris.getInstance().getVoyager1Position(target);
+      return SpacecraftEphemeris.getInstance().getVoyager1Position(out);
     }
 
     if (id === 'voyager2') {
-      return SpacecraftEphemeris.getInstance().getVoyager2Position(target);
+      return SpacecraftEphemeris.getInstance().getVoyager2Position(out);
+    }
+
+    if (data.type === 'constellation') {
+      const raRad = THREE.MathUtils.degToRad((data.raHours ?? 0) * 15.0);
+      const decRad = THREE.MathUtils.degToRad(data.decDeg ?? 0);
+      const cosDec = Math.cos(decRad);
+      return out.set(
+        6420 * cosDec * Math.cos(raRad),
+        6420 * Math.sin(decRad),
+        6420 * cosDec * Math.sin(raRad)
+      );
     }
 
     // Hierarchical Moon Position relative to parent planet
@@ -110,7 +151,7 @@ export class CameraManager {
           inclinationDeg: data.orbitalInclinationDeg ?? 1.5
         },
         simTime,
-        target
+        out
       );
       return moonOffset.add(parentPos);
     }
@@ -125,7 +166,7 @@ export class CameraManager {
         inclinationDeg: data.orbitalInclinationDeg ?? 0.0
       },
       simTime,
-      target
+      out
     );
   }
 
@@ -134,11 +175,17 @@ export class CameraManager {
    */
   public getAdaptiveMinDistance(): number {
     const store = useAppStore.getState();
+    if (store.activeCosmicLab === 'planetarium') return 0.5;
+    if (store.activeCosmicLab !== 'none') return 5.0;
     if (store.activeSurface !== 'none') return 2.0;
     if (store.inExoSystem) return 5.0;
     if (this.state === 'GALAXY') return 80;
     if (this.activeFocusId === 'blackhole') return 35;
     if (this.activeFocusId === 'pulsar') return 15;
+    if (this.activeFocusId === 'iss') return 0.35;
+    if (this.activeFocusId === 'jwst') return 0.35;
+    if (this.activeFocusId === 'voyager1' || this.activeFocusId === 'voyager2') return 2.0;
+    if (!this.activeFocusId && store.targetId?.startsWith('constellation_')) return 0.8;
     if (!this.activeFocusId || this.activeFocusId === 'sun') return 25;
     const body = CELESTIAL_BODIES[this.activeFocusId];
     if (!body) return 10;
@@ -147,11 +194,15 @@ export class CameraManager {
 
   public getAdaptiveMaxDistance(): number {
     const store = useAppStore.getState();
+    if (store.activeCosmicLab === 'planetarium') return 3.0;
+    if (store.activeCosmicLab !== 'none') return 95.0;
     if (store.activeSurface !== 'none') return 48.0;
     if (store.inExoSystem) return 140.0;
     if (this.state === 'GALAXY') return 1200;
     if (this.activeFocusId === 'blackhole') return 600;
     if (this.activeFocusId === 'pulsar') return 350;
+    if (this.activeFocusId === 'iss' || this.activeFocusId === 'jwst') return 30.0;
+    if (!this.activeFocusId && store.targetId?.startsWith('constellation_')) return 18.0;
     if (!this.activeFocusId || this.activeFocusId === 'sun') return 3000;
     const body = CELESTIAL_BODIES[this.activeFocusId];
     if (!body) return 1500;
@@ -182,43 +233,173 @@ export class CameraManager {
     // Calculate pan factor proportional to current distance
     const panFactor = this.currentDistance * 0.0018;
 
-    // Camera local axes
-    const right = new THREE.Vector3();
-    const up = new THREE.Vector3();
-    this.camera.matrix.extractBasis(right, up, this.tempVec);
+    // Camera local axes (reusing static scratch vectors)
+    this.camera.matrix.extractBasis(this.panRight, this.panUp, this.tempVec);
 
-    right.multiplyScalar(-deltaX * panFactor);
-    up.multiplyScalar(deltaY * panFactor);
+    this.panRight.multiplyScalar(-deltaX * panFactor);
+    this.panUp.multiplyScalar(deltaY * panFactor);
 
-    this.target.add(right).add(up);
+    this.target.add(this.panRight).add(this.panUp);
   }
 
   /**
-   * Switches camera to ground surface view for Mars or Moon exploration.
+   * Switches camera to ground surface view for Mars, Moon, Europa, or Titan exploration.
    */
-  public setSurfaceMode(surface: 'mars' | 'moon' | 'none'): void {
+  public setSurfaceMode(surface: ActiveSurface): void {
     if (surface === 'none') return;
 
-    if (this.currentTween) {
-      this.currentTween.kill();
-      this.currentTween = null;
-    }
+    this.cancelActiveTransition();
+    this.setFov(50);
 
     this.activeFocusId = null;
     this.state = 'ORBIT';
     useAppStore.getState().setCameraMode('ORBIT');
 
-    this.target.set(0, 0, 0);
-    const startPos = surface === 'mars'
-      ? new THREE.Vector3(0, 3.2, 16)
-      : new THREE.Vector3(0, 2.5, 14);
+    this.target.set(0, 0.4, 0);
+    const startPos =
+      surface === 'mars'
+        ? new THREE.Vector3(0, 3.2, 16)
+        : surface === 'europa'
+        ? new THREE.Vector3(0, 3.0, 15.5)
+        : surface === 'titan'
+        ? new THREE.Vector3(0, 2.8, 15.0)
+        : new THREE.Vector3(0, 2.5, 14);
 
     if (this.camera) {
+      this.camera.up.set(0, 1, 0);
       this.camera.position.copy(startPos);
       this.camera.lookAt(this.target);
     }
 
-    this.spherical.setFromVector3(startPos);
+    this.spherical.setFromVector3(startPos.clone().sub(this.target));
+    this.targetSpherical.copy(this.spherical);
+    this.currentDistance = this.spherical.radius;
+    this.targetDistance = this.spherical.radius;
+  }
+
+  /**
+   * Updates the active perspective camera vertical FOV cleanly (used by Planetarium Telescope mode & reset).
+   */
+  public setFov(fov: number): void {
+    if (!this.camera) return;
+    const clamped = Number.isFinite(fov) ? Math.max(10, Math.min(85, fov)) : 50;
+    if (Math.abs(this.camera.fov - clamped) > 0.01) {
+      this.camera.fov = clamped;
+      this.camera.updateProjectionMatrix();
+    }
+  }
+
+  /**
+   * Positions the observatory camera for each standalone 3D Cosmic Lab.
+   */
+  public setCosmicLabMode(lab: ActiveCosmicLab): void {
+    if (lab === 'none') {
+      this.setFov(50);
+      return;
+    }
+
+    this.cancelActiveTransition();
+    this.activeFocusId = null;
+    this.state = 'ORBIT';
+    useAppStore.getState().setCameraMode('ORBIT');
+    this.setFov(50);
+
+    let startPos = new THREE.Vector3(0, 2.5, 22);
+    let destTarget = new THREE.Vector3(0, 0, 0);
+
+    if (lab === 'eclipse') {
+      startPos = new THREE.Vector3(0, 0.8, 22);
+      destTarget = new THREE.Vector3(0, 0, 0);
+    } else if (lab === 'binary_merger') {
+      startPos = new THREE.Vector3(0, 14, 24);
+      destTarget = new THREE.Vector3(0, 0, 0);
+    } else if (lab === 'stellar_lab') {
+      startPos = new THREE.Vector3(0, 3.2, 23);
+      destTarget = new THREE.Vector3(0, 0, 0);
+    } else if (lab === 'planetarium') {
+      // Observer standing inside the 360° sky dome at +8° pitch framing northern ridge, N compass, Polaris, Milky Way & Perseids
+      destTarget = new THREE.Vector3(0, 2.55, -2.4);
+      startPos = new THREE.Vector3(0, 2.1, 0.0);
+    } else if (lab === 'nbody_sandbox') {
+      startPos = new THREE.Vector3(0, 12.5, 16.5);
+      destTarget = new THREE.Vector3(0, 0, 0);
+    } else if (lab === 'mars_terraform') {
+      startPos = new THREE.Vector3(0, 2.4, 15.8);
+      destTarget = new THREE.Vector3(0, 0.2, 0);
+    } else if (lab === 'planetary_cutaway') {
+      startPos = new THREE.Vector3(9.4, 5.8, 15.2);
+      destTarget = new THREE.Vector3(0, -0.55, 0);
+    } else if (lab === 'planetary_defense') {
+      startPos = new THREE.Vector3(2.2, 10.5, 22.0);
+      destTarget = new THREE.Vector3(0, 0, 0);
+    } else if (lab === 'trappist_exoplanets') {
+      startPos = new THREE.Vector3(0, 13.0, 27.0);
+      destTarget = new THREE.Vector3(0, -0.7, 0);
+    } else if (lab === 'dyson_megastructure') {
+      startPos = new THREE.Vector3(0, 8.2, 26.8);
+      destTarget = new THREE.Vector3(0, -1.25, 0);
+    } else if (lab === 'relativity_lab') {
+      startPos = new THREE.Vector3(0, 0.2, 18.5);
+      destTarget = new THREE.Vector3(0, 0, 0);
+    } else if (lab === 'kessler_leo') {
+      startPos = new THREE.Vector3(0, 6.8, 20.6);
+      destTarget = new THREE.Vector3(0, -0.85, 0);
+    }
+
+    this.applyImmediateOrbitPose(startPos, destTarget);
+  }
+
+  /**
+   * Transitions camera pose cleanly for multi-view Wave 2 Cosmic Labs (surface_e, oneill_cylinder, bh_dive)
+   * while synchronizing spherical orbit state so updateOrbit never fights the sub-view.
+   */
+  public setCosmicLabSubView(lab: ActiveCosmicLab, subView: string): void {
+    let startPos = new THREE.Vector3(0, 3, 20);
+    let destTarget = new THREE.Vector3(0, 0, 0);
+
+    if (lab === 'trappist_exoplanets') {
+      if (subView === 'surface_e') {
+        startPos = new THREE.Vector3(0, 2.6, 13.8);
+        destTarget = new THREE.Vector3(0, 2.2, -12.0);
+      } else {
+        startPos = new THREE.Vector3(0, 13.0, 27.0);
+        destTarget = new THREE.Vector3(0, -0.7, 0);
+      }
+    } else if (lab === 'dyson_megastructure') {
+      if (subView === 'oneill_cylinder') {
+        startPos = new THREE.Vector3(0, 0.3, 14.5);
+        destTarget = new THREE.Vector3(0, 0.2, -8.0);
+      } else {
+        startPos = new THREE.Vector3(0, 8.2, 26.8);
+        destTarget = new THREE.Vector3(0, -1.25, 0);
+      }
+    } else if (lab === 'relativity_lab') {
+      if (subView === 'bh_dive') {
+        startPos = new THREE.Vector3(0, 0.0, 14.0);
+        destTarget = new THREE.Vector3(0, 0, 0);
+      } else {
+        startPos = new THREE.Vector3(0, 0.2, 18.5);
+        destTarget = new THREE.Vector3(0, 0, 0);
+      }
+    } else {
+      return;
+    }
+
+    this.cancelActiveTransition();
+    this.activeFocusId = null;
+    this.state = 'ORBIT';
+    this.applyImmediateOrbitPose(startPos, destTarget);
+  }
+
+  private applyImmediateOrbitPose(startPos: THREE.Vector3, destTarget: THREE.Vector3): void {
+    this.target.copy(destTarget);
+    if (this.camera) {
+      this.camera.up.set(0, 1, 0);
+      this.camera.position.copy(startPos);
+      this.camera.lookAt(this.target);
+    }
+
+    this.spherical.setFromVector3(startPos.clone().sub(this.target));
     this.targetSpherical.copy(this.spherical);
     this.currentDistance = this.spherical.radius;
     this.targetDistance = this.spherical.radius;
@@ -230,10 +411,7 @@ export class CameraManager {
   public setExoSystemMode(active: boolean): void {
     if (!active) return;
 
-    if (this.currentTween) {
-      this.currentTween.kill();
-      this.currentTween = null;
-    }
+    this.cancelActiveTransition();
 
     this.activeFocusId = null;
     this.state = 'ORBIT';
@@ -243,11 +421,54 @@ export class CameraManager {
     const startPos = new THREE.Vector3(0, 9, 32);
 
     if (this.camera) {
+      this.camera.up.set(0, 1, 0);
       this.camera.position.copy(startPos);
       this.camera.lookAt(this.target);
     }
 
     this.spherical.setFromVector3(startPos.clone().sub(this.target));
+    this.targetSpherical.copy(this.spherical);
+    this.currentDistance = this.spherical.radius;
+    this.targetDistance = this.spherical.radius;
+  }
+
+  /**
+   * Switches camera to dedicated simulation scenario mode (Launch, Earth History, Cosmic History).
+   */
+  public setScenarioMode(scenario: 'earth_launch' | 'earth_history' | 'cosmic_history' | 'none'): void {
+    this.activeScenario = scenario;
+    this.cancelActiveTransition();
+
+    // Always restore canonical world-up horizon after any spacecraft/gravity-turn camera roll
+    if (this.camera) {
+      this.camera.up.set(0, 1, 0);
+    }
+
+    this.activeFocusId = null;
+    if (scenario === 'none') {
+      if (this.camera) {
+        this.camera.lookAt(this.target);
+      }
+      return;
+    }
+
+    this.state = 'ORBIT';
+    useAppStore.getState().setCameraMode('ORBIT');
+    this.target.set(0, 0, 0);
+
+    let startPos = new THREE.Vector3(0, 20, 110);
+    if (scenario === 'earth_history') {
+      startPos = new THREE.Vector3(0, 14, 65);
+    } else if (scenario === 'cosmic_history') {
+      startPos = new THREE.Vector3(0, 22, 125);
+    }
+
+    if (this.camera) {
+      this.camera.position.copy(startPos);
+      this.camera.lookAt(this.target);
+    }
+
+    this.spherical.setFromVector3(startPos);
     this.targetSpherical.copy(this.spherical);
     this.currentDistance = this.spherical.radius;
     this.targetDistance = this.spherical.radius;
@@ -289,11 +510,30 @@ export class CameraManager {
   ): void {
     if (!this.camera || this.state !== 'FREE_FLIGHT') return;
 
+    const dt = Number.isFinite(delta) && delta > 0 ? Math.min(delta, 0.05) : 0;
     const lookSpeed = 0.0022;
-    this.euler.setFromQuaternion(this.camera.quaternion);
-    this.euler.y -= mouseDeltaX * lookSpeed;
-    this.euler.x -= mouseDeltaY * lookSpeed;
-    this.euler.x = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, this.euler.x));
+
+    if (!this.flightModeInitialized) {
+      this.euler.setFromQuaternion(this.camera.quaternion, 'YXZ');
+      this.flightYaw = this.euler.y;
+      this.flightPitch = THREE.MathUtils.clamp(this.euler.x, -Math.PI / 2 + 0.05, Math.PI / 2 - 0.05);
+      this.flightTargetYaw = this.flightYaw;
+      this.flightTargetPitch = this.flightPitch;
+      this.euler.z = 0;
+      this.flightModeInitialized = true;
+    }
+
+    this.flightTargetYaw -= mouseDeltaX * lookSpeed;
+    this.flightTargetPitch = THREE.MathUtils.clamp(
+      this.flightTargetPitch - mouseDeltaY * lookSpeed,
+      -Math.PI / 2 + 0.05,
+      Math.PI / 2 - 0.05
+    );
+
+    const lookDamp = 1 - Math.exp(-18.0 * dt);
+    this.flightYaw = THREE.MathUtils.lerp(this.flightYaw, this.flightTargetYaw, lookDamp);
+    this.flightPitch = THREE.MathUtils.lerp(this.flightPitch, this.flightTargetPitch, lookDamp);
+    this.euler.set(this.flightPitch, this.flightYaw, 0, 'YXZ');
     this.camera.quaternion.setFromEuler(this.euler);
 
     this.moveDir.set(0, 0, 0);
@@ -308,117 +548,333 @@ export class CameraManager {
     if (keys.boost) currentMaxSpeed *= 3.0;
     if (keys.precision) currentMaxSpeed *= 0.25;
 
-    if (this.moveDir.lengthSq() > 0) {
+    if (this.moveDir.lengthSq() > 0 && dt > 0) {
       this.moveDir.normalize();
       this.moveDir.applyQuaternion(this.camera.quaternion);
-      this.velocity.addScaledVector(this.moveDir, this.acceleration * delta);
+      this.velocity.addScaledVector(this.moveDir, this.acceleration * dt);
 
       if (this.velocity.length() > currentMaxSpeed) {
         this.velocity.setLength(currentMaxSpeed);
       }
     }
 
-    if (keys.brake) {
-      this.velocity.multiplyScalar(Math.pow(0.2, delta));
-    } else {
-      this.velocity.multiplyScalar(Math.pow(this.drag, delta * 30));
+    if (dt > 0) {
+      if (keys.brake) {
+        this.velocity.multiplyScalar(Math.pow(0.2, dt));
+      } else {
+        this.velocity.multiplyScalar(Math.pow(this.drag, dt * 30));
+      }
+      this.camera.position.addScaledVector(this.velocity, dt);
     }
-
-    this.camera.position.addScaledVector(this.velocity, delta);
 
     const normalizedSpeed = this.velocity.length() / (this.maxSpeed * 3.0);
     AudioManager.getInstance().setWarpIntensity(normalizedSpeed);
   }
 
   /**
-   * Cinematic transition to focus on any body.
+   * Cancels any active camera transition cleanly (e.g. when entering FREE_FLIGHT mid-tween).
+   */
+  public cancelActiveTransition(): void {
+    this.transitionActive = false;
+    this.transitionOnComplete = null;
+    this.tweenFocusId = null;
+    this.prevHostAzimuth = null;
+    this.prevSimTimeForOrbit = null;
+    this.flightModeInitialized = false;
+    AudioManager.getInstance().setWarpIntensity(0.0);
+  }
+
+  /**
+   * Smoothly exits 6-DOF Free Flight at the camera's current world pose without snapping back to an old body.
+   */
+  public exitFreeFlight(): void {
+    this.cancelActiveTransition();
+    this.activeFocusId = null;
+    this.velocity.set(0, 0, 0);
+    AudioManager.getInstance().setWarpIntensity(0.0);
+
+    if (this.camera) {
+      this.camera.up.set(0, 1, 0);
+      this.camera.getWorldDirection(this.tempVec);
+      if (this.tempVec.lengthSq() < 1e-4) {
+        this.tempVec.set(0, 0, -1);
+      } else {
+        this.tempVec.normalize();
+      }
+      const pivotDist = 60.0;
+      this.target.copy(this.camera.position).addScaledVector(this.tempVec, pivotDist);
+      this.spherical.setFromVector3(this.tempVec.clone().multiplyScalar(-pivotDist));
+      this.targetSpherical.copy(this.spherical);
+      this.currentDistance = pivotDist;
+      this.targetDistance = pivotDist;
+      this.camera.lookAt(this.target);
+    }
+
+    this.state = 'ORBIT';
+    useAppStore.getState().setCameraMode('ORBIT');
+  }
+
+  /**
+   * Computes a zenith-above-horizon 3/4 orbital offset for ISS in its exact 51.6° orbital-plane basis
+   * (issZenith, issPrograde, issOrbitAxis) so the camera stays outside LEO, frames Earth's sunlit limb,
+   * and maintains >= 28° clearance from the celestial poles across the entire 360° orbit (zero gimbal twist).
+   */
+  private computeISSZenithOffset(issPos: THREE.Vector3, distance: number, out: THREE.Vector3): THREE.Vector3 {
+    const earthPos = this.getLiveBodyPosition('earth', this.parentScratch);
+    this.issZenithScratch.copy(issPos).sub(earthPos);
+    if (this.issZenithScratch.lengthSq() < 1e-4) {
+      this.issZenithScratch.set(1, 0, 0);
+    } else {
+      this.issZenithScratch.normalize();
+    }
+    this.issTangentScratch.crossVectors(this.issOrbitAxis, this.issZenithScratch).normalize();
+
+    return out
+      .set(0, 0, 0)
+      .addScaledVector(this.issZenithScratch, 0.58)
+      .addScaledVector(this.issTangentScratch, 0.79)
+      .addScaledVector(this.issOrbitAxis, -0.18)
+      .normalize()
+      .multiplyScalar(distance);
+  }
+
+  /**
+   * Computes a cold-side 3/4 optical-face hero offset for JWST aligned to the live Sun-Earth axis:
+   * prominently displays all 18 gold beryllium mirror segments + 5-layer kite deck while maintaining
+   * >= 63° angular separation from Earth's 20° disc so Earth & Sun never clip the viewport edge.
+   */
+  private computeJWSTHeroOffset(distance: number, out: THREE.Vector3): THREE.Vector3 {
+    const earthPos = this.getLiveBodyPosition('earth', this.parentScratch);
+    const horizLen = Math.hypot(earthPos.x, earthPos.z) || 1;
+    const toSunX = -earthPos.x / horizLen;
+    const toSunZ = -earthPos.z / horizLen;
+    const rightX = -toSunZ;
+    const rightZ = toSunX;
+    return out
+      .set(-toSunX * 0.34 - rightX * 0.88, 0.30, -toSunZ * 0.34 - rightZ * 0.88)
+      .normalize()
+      .multiplyScalar(distance);
+  }
+
+  /**
+   * Updates the active Bezier transition against live orbital/ephemeris motion so moving targets (ISS, JWST, moons)
+   * never drift out of frame while SimulationClock is running.
+   */
+  public syncLiveFocusDuringTween(progress: number): void {
+    if (!this.camera || !this.tweenCurve) return;
+
+    if (this.tweenFocusId && this.tweenFocusId !== 'sun') {
+      const liveTarget = this.getLiveBodyPosition(this.tweenFocusId, this.orbitFocusPos);
+      this.tweenDestTarget.copy(liveTarget);
+      if (this.tweenFocusId === 'iss') {
+        const currentDist = this.tweenRelativeOffset.length() || 0.92;
+        this.computeISSZenithOffset(liveTarget, currentDist, this.tweenRelativeOffset);
+      } else if (this.tweenFocusId === 'jwst') {
+        const currentDist = this.tweenRelativeOffset.length() || 0.43;
+        this.computeJWSTHeroOffset(currentDist, this.tweenRelativeOffset);
+      }
+      this.tweenCurve.v2.copy(liveTarget).add(this.tweenRelativeOffset);
+    }
+
+    this.tweenCurve.getPoint(progress, this.tempVec);
+    this.camera.position.copy(this.tempVec);
+
+    this.target.lerpVectors(this.tweenStartTarget, this.tweenDestTarget, progress);
+    this.camera.lookAt(this.target);
+  }
+
+  /**
+   * Advances active Bezier transition inside R3F's unified useFrame loop (zero dual-rAF desync!).
+   */
+  public updateTransition(delta: number = 0.016): void {
+    if (!this.transitionActive || !this.camera) return;
+
+    const dt = Number.isFinite(delta) && delta > 0 ? Math.min(delta, 0.05) : 0.016;
+    this.transitionElapsed += dt;
+    const rawT = Math.min(1.0, this.transitionElapsed / this.transitionDuration);
+    // Quintic C2 smootherstep (zero velocity & zero acceleration at both start and arrival!)
+    const eased = rawT >= 1.0 ? 1.0 : rawT * rawT * rawT * (rawT * (rawT * 6.0 - 15.0) + 10.0);
+
+    this.syncLiveFocusDuringTween(eased);
+    AudioManager.getInstance().setWarpIntensity((1 - eased) * 0.7);
+
+    if (rawT >= 1.0) {
+      this.transitionActive = false;
+      this.target.copy(this.tweenDestTarget);
+      this.spherical.setFromVector3(this.tempVec.copy(this.camera.position).sub(this.target));
+      this.targetSpherical.copy(this.spherical);
+      this.currentDistance = this.spherical.radius;
+      this.targetDistance = this.spherical.radius;
+      this.prevSimTimeForOrbit = SimulationClock.getInstance().simulationTime;
+      this.prevFocusIdForAzimuth = this.activeFocusId;
+      if (this.activeFocusId === 'jwst') {
+        const earthPos = this.getLiveBodyPosition('earth', this.parentScratch);
+        this.prevHostAzimuth = Math.atan2(earthPos.x, earthPos.z);
+      } else {
+        this.prevHostAzimuth = null;
+      }
+
+      this.state = 'ORBIT';
+      useAppStore.getState().setCameraMode('ORBIT');
+      AudioManager.getInstance().setWarpIntensity(0.0);
+      this.tweenFocusId = null;
+
+      const cb = this.transitionOnComplete;
+      this.transitionOnComplete = null;
+      cb?.();
+    }
+  }
+
+  /**
+   * Cinematic transition to focus on any body or sky vantage point.
    */
   public flyTo(
     destPosition: THREE.Vector3,
     destTarget: THREE.Vector3,
     duration = 2.4,
-    onComplete?: () => void
+    onComplete?: () => void,
+    liveFocusId: string | null = null,
+    relativeOffset?: THREE.Vector3
   ): void {
     if (!this.camera) return;
 
-    if (this.currentTween) {
-      this.currentTween.kill();
-      this.currentTween = null;
-    }
+    this.cancelActiveTransition();
 
     this.state = 'TRANSITIONING';
     useAppStore.getState().setCameraMode('TRANSITIONING');
+    this.camera.up.set(0, 1, 0);
 
-    const startPos = this.camera.position.clone();
-    const startTarget = this.target.clone();
+    this.tweenFocusId = liveFocusId;
+    if (relativeOffset) {
+      this.tweenRelativeOffset.copy(relativeOffset);
+    } else {
+      this.tweenRelativeOffset.copy(destPosition).sub(destTarget);
+    }
+    this.tweenStartPos.copy(this.camera.position);
+    this.tweenStartTarget.copy(this.target);
+    this.tweenDestTarget.copy(destTarget);
 
-    const midPoint = new THREE.Vector3().addVectors(startPos, destPosition).multiplyScalar(0.5);
-    const detour = new THREE.Vector3(midPoint.z * 0.2, Math.abs(midPoint.x) * 0.25 + 25, -midPoint.x * 0.2);
-    midPoint.add(detour);
+    const midPoint = new THREE.Vector3().addVectors(this.tweenStartPos, destPosition).multiplyScalar(0.5);
+    const chordLen = this.tweenStartPos.distanceTo(destPosition);
+    const chordX = destPosition.x - this.tweenStartPos.x;
+    const chordZ = destPosition.z - this.tweenStartPos.z;
+    const horizChord = Math.hypot(chordX, chordZ);
+    const sideScale = Math.min(20, chordLen * 0.12);
+    const perpX = horizChord > 1e-4 ? -chordZ / horizChord : 0;
+    const perpZ = horizChord > 1e-4 ? chordX / horizChord : 0;
+    const arcLift = Math.min(25, Math.max(2.0, chordLen * 0.18));
+    midPoint.set(
+      midPoint.x + perpX * sideScale,
+      midPoint.y + arcLift,
+      midPoint.z + perpZ * sideScale
+    );
 
-    const curve = new THREE.QuadraticBezierCurve3(startPos, midPoint, destPosition);
+    this.tweenCurve = new THREE.QuadraticBezierCurve3(
+      this.tweenStartPos.clone(),
+      midPoint,
+      destPosition.clone()
+    );
 
-    const animProgress = { t: 0 };
+    this.transitionDuration = Math.max(0.05, duration);
+    this.transitionElapsed = 0;
+    this.transitionOnComplete = onComplete ?? null;
+    this.transitionActive = true;
     AudioManager.getInstance().setWarpIntensity(0.7);
+  }
 
-    this.currentTween = gsap.timeline({
-      onUpdate: () => {
-        if (!this.camera) return;
-        const progress = animProgress.t;
+  /**
+   * Rotates and positions the observatory camera above/below the ecliptic to frame an IAU constellation
+   * dead-center against unobstructed starry sky.
+   */
+  public focusConstellation(id: string, onComplete?: () => void): void {
+    const data = CELESTIAL_BODIES[id];
+    if (!data || data.type !== 'constellation') return;
 
-        curve.getPoint(progress, this.tempVec);
-        this.camera.position.copy(this.tempVec);
+    const store = useAppStore.getState();
+    if (!store.showStarMap) {
+      store.toggleStarMap();
+    }
+    store.setCompareMode(false);
+    store.setActiveSurface('none');
+    store.setInExoSystem(false);
 
-        this.target.lerpVectors(startTarget, destTarget, progress);
-        this.camera.lookAt(this.target);
+    this.activeFocusId = null;
+    const raRad = THREE.MathUtils.degToRad((data.raHours ?? 0) * 15.0);
+    const decRad = THREE.MathUtils.degToRad(data.decDeg ?? 0);
+    const cosDec = Math.cos(decRad);
+    const dir = new THREE.Vector3(
+      cosDec * Math.cos(raRad),
+      Math.sin(decRad),
+      cosDec * Math.sin(raRad)
+    ).normalize();
 
-        AudioManager.getInstance().setWarpIntensity((1 - progress) * 0.7);
-      },
-      onComplete: () => {
-        if (!this.camera) return;
-        this.target.copy(destTarget);
-        this.spherical.setFromVector3(this.camera.position.clone().sub(this.target));
-        this.targetSpherical.copy(this.spherical);
-        this.currentDistance = this.spherical.radius;
-        this.targetDistance = this.spherical.radius;
+    const vantageY = dir.y >= 0 ? 74.0 : -74.0;
+    const lookPivotDist = 2.5;
+    const destTarget = new THREE.Vector3(0, vantageY, 0);
+    const destPos = destTarget.clone().addScaledVector(dir, -lookPivotDist);
 
-        this.state = 'ORBIT';
-        useAppStore.getState().setCameraMode('ORBIT');
-        AudioManager.getInstance().setWarpIntensity(0.0);
-        this.currentTween = null;
-
-        onComplete?.();
-      }
-    });
-
-    this.currentTween.to(animProgress, {
-      t: 1.0,
-      duration,
-      ease: 'power2.inOut'
+    this.flyTo(destPos, destTarget, 1.8, () => {
+      this.targetDistance = lookPivotDist;
+      this.targetSpherical.radius = lookPivotDist;
+      this.spherical.radius = lookPivotDist;
+      this.state = 'ORBIT';
+      useAppStore.getState().setCameraMode('ORBIT');
+      onComplete?.();
     });
   }
 
   /**
-   * Fly to specific celestial body (planet, moon, or black hole).
+   * Fly to specific celestial body (planet, moon, spacecraft, constellation, or black hole)
+   * using sun-relative 3/4 cinema framing and continuous live-ephemeris tracking.
    */
   public focusPlanet(id: string, onComplete?: () => void): void {
+    if (CELESTIAL_BODIES[id]?.type === 'constellation') {
+      this.focusConstellation(id, onComplete);
+      return;
+    }
+
     if (id === 'iss' || id === 'jwst' || id === 'voyager1' || id === 'voyager2') {
       this.activeFocusId = id;
       const targetPos = this.getLiveBodyPosition(id).clone();
-      const safeDistance = id === 'iss' ? 3.2 : id === 'jwst' ? 4.5 : 9.0;
-      const destPos = new THREE.Vector3(
-        targetPos.x + safeDistance * 0.7,
-        targetPos.y + safeDistance * 0.4,
-        targetPos.z + safeDistance * 0.7
+      const horizLen = Math.hypot(targetPos.x, targetPos.z) || 1;
+      const toSunX = -targetPos.x / horizLen;
+      const toSunZ = -targetPos.z / horizLen;
+      const rightX = -toSunZ;
+      const rightZ = toSunX;
+
+      let safeDistance = 8.6;
+      const relOffset = new THREE.Vector3();
+      if (id === 'iss') {
+        safeDistance = 0.92;
+        this.computeISSZenithOffset(targetPos, safeDistance, relOffset);
+      } else if (id === 'jwst') {
+        safeDistance = 0.43;
+        this.computeJWSTHeroOffset(safeDistance, relOffset);
+      } else {
+        // Voyager 1 & 2: sunward (+toSun) 3/4 angle framing 100% of dish, 10-sided bus, RTG & Astromast booms
+        safeDistance = 8.4;
+        relOffset
+          .set(toSunX * 0.68 + rightX * 0.64, 0.18, toSunZ * 0.68 + rightZ * 0.64)
+          .normalize()
+          .multiplyScalar(safeDistance);
+      }
+
+      const destPos = targetPos.clone().add(relOffset);
+      this.flyTo(
+        destPos,
+        targetPos,
+        1.9,
+        () => {
+          this.targetDistance = safeDistance;
+          this.targetSpherical.radius = safeDistance;
+          this.spherical.radius = safeDistance;
+          this.state = 'ORBIT';
+          useAppStore.getState().setCameraMode('ORBIT');
+          onComplete?.();
+        },
+        id,
+        relOffset
       );
-      this.flyTo(destPos, targetPos, 2.2, () => {
-        this.targetDistance = safeDistance;
-        this.targetSpherical.radius = safeDistance;
-        this.spherical.radius = safeDistance;
-        this.state = 'ORBIT';
-        useAppStore.getState().setCameraMode('ORBIT');
-        onComplete?.();
-      });
       return;
     }
 
@@ -427,20 +883,44 @@ export class CameraManager {
 
     this.activeFocusId = id;
     const targetPos = this.getLiveBodyPosition(id).clone();
-    const safeDistance = Math.max(data.visualRadius * 3.4, data.type === 'moon' ? 4.5 : 12.0);
+    const safeDistance = Math.max(data.visualRadius * 3.35, data.type === 'moon' ? 4.2 : 11.5);
 
-    const destPos = new THREE.Vector3(
-      targetPos.x + safeDistance * 0.7,
-      targetPos.y + safeDistance * 0.4,
-      targetPos.z + safeDistance * 0.7
+    // Cinema 3/4 sunlit crescent/gibbous phase angle (eliminates 80% dark nightside & inner-system moon photobombs!)
+    const horizLen = Math.hypot(targetPos.x, targetPos.z);
+    let destPos: THREE.Vector3;
+    if (horizLen > 1.0) {
+      const toSunX = -targetPos.x / horizLen;
+      const toSunZ = -targetPos.z / horizLen;
+      const rightX = -toSunZ;
+      const rightZ = toSunX;
+      const dir = new THREE.Vector3(
+        toSunX * 0.54 - rightX * 0.76,
+        0.38,
+        toSunZ * 0.54 - rightZ * 0.76
+      ).normalize();
+      destPos = targetPos.clone().addScaledVector(dir, safeDistance);
+    } else {
+      destPos = new THREE.Vector3(
+        targetPos.x + safeDistance * 0.7,
+        targetPos.y + safeDistance * 0.4,
+        targetPos.z + safeDistance * 0.7
+      );
+    }
+
+    const relOffset = destPos.clone().sub(targetPos);
+    this.flyTo(
+      destPos,
+      targetPos,
+      2.2,
+      () => {
+        this.targetDistance = safeDistance;
+        this.targetSpherical.radius = safeDistance;
+        this.spherical.radius = safeDistance;
+        onComplete?.();
+      },
+      id,
+      relOffset
     );
-
-    this.flyTo(destPos, targetPos, 2.2, () => {
-      this.targetDistance = safeDistance;
-      this.targetSpherical.radius = safeDistance;
-      this.spherical.radius = safeDistance;
-      onComplete?.();
-    });
   }
 
   /**
@@ -533,25 +1013,205 @@ export class CameraManager {
   }
 
   /**
+   * Captures current camera viewpoint with live body-relative offset so orbiting targets stay locked.
+   */
+  public captureBookmarkPayload(
+    name: string,
+    fallbackTargetId: string | null = null
+  ): {
+    name: string;
+    targetId: string | null;
+    position: [number, number, number];
+    target: [number, number, number];
+    offset?: [number, number, number];
+  } {
+    const resolvedTargetId = this.activeFocusId ?? fallbackTargetId;
+    const posVec = this.camera ? this.camera.position : new THREE.Vector3(110, 35, 95);
+    const pos: [number, number, number] = [
+      +posVec.x.toFixed(2),
+      +posVec.y.toFixed(2),
+      +posVec.z.toFixed(2),
+    ];
+    const tgt: [number, number, number] = [
+      +this.target.x.toFixed(2),
+      +this.target.y.toFixed(2),
+      +this.target.z.toFixed(2),
+    ];
+
+    let offset: [number, number, number] | undefined;
+    const isConstellationTarget = Boolean(
+      resolvedTargetId && CELESTIAL_BODIES[resolvedTargetId]?.type === 'constellation'
+    );
+    if (resolvedTargetId && resolvedTargetId !== 'sun' && !isConstellationTarget) {
+      const liveBody = this.getLiveBodyPosition(resolvedTargetId, this.orbitFocusPos);
+      offset = [
+        +(posVec.x - liveBody.x).toFixed(2),
+        +(posVec.y - liveBody.y).toFixed(2),
+        +(posVec.z - liveBody.z).toFixed(2),
+      ];
+    }
+
+    return {
+      name,
+      targetId: resolvedTargetId,
+      position: pos,
+      target: tgt,
+      offset,
+    };
+  }
+
+  /**
+   * Restores a saved VIP camera bookmark without activeFocusId snap-back or orbital drift.
+   */
+  public restoreBookmark(bm: {
+    targetId: string | null;
+    position: [number, number, number];
+    target: [number, number, number];
+    offset?: [number, number, number];
+  }): void {
+    const store = useAppStore.getState();
+    store.setTargetId(bm.targetId);
+    const bodyData = bm.targetId ? CELESTIAL_BODIES[bm.targetId] : undefined;
+
+    if (bodyData?.type === 'constellation') {
+      if (!store.showStarMap) {
+        store.toggleStarMap();
+      }
+      this.activeFocusId = null;
+      const destPos = new THREE.Vector3(bm.position[0], bm.position[1], bm.position[2]);
+      const destTgt = new THREE.Vector3(bm.target[0], bm.target[1], bm.target[2]);
+      this.flyTo(destPos, destTgt, 1.8, () => {
+        this.activeFocusId = null;
+      });
+      return;
+    }
+
+    this.activeFocusId = bm.targetId;
+
+    if (bm.targetId && bm.targetId !== 'sun' && bodyData) {
+      const liveTarget = this.getLiveBodyPosition(bm.targetId).clone();
+      const relX = bm.offset ? bm.offset[0] : bm.position[0] - bm.target[0];
+      const relY = bm.offset ? bm.offset[1] : bm.position[1] - bm.target[1];
+      const relZ = bm.offset ? bm.offset[2] : bm.position[2] - bm.target[2];
+      const relVec = new THREE.Vector3(relX, relY, relZ);
+      const destPos = liveTarget.clone().add(relVec);
+      this.flyTo(
+        destPos,
+        liveTarget,
+        1.8,
+        () => {
+          this.activeFocusId = bm.targetId;
+        },
+        bm.targetId,
+        relVec
+      );
+      return;
+    }
+
+    const destPos = new THREE.Vector3(bm.position[0], bm.position[1], bm.position[2]);
+    const destTgt = new THREE.Vector3(bm.target[0], bm.target[1], bm.target[2]);
+    this.flyTo(destPos, destTgt, 1.8, () => {
+      this.activeFocusId = bm.targetId;
+    });
+  }
+
+  private pendingScreenshotCallback: ((dataUrl: string) => void) | null = null;
+
+  public requestScreenshot(cb: (dataUrl: string) => void): void {
+    this.pendingScreenshotCallback = cb;
+  }
+
+  public consumeScreenshotCallback(): ((dataUrl: string) => void) | null {
+    const cb = this.pendingScreenshotCallback;
+    this.pendingScreenshotCallback = null;
+    return cb;
+  }
+
+  /**
    * Frame update with continuous exponential damping and live orbit tracking.
    */
   public updateOrbit(delta: number = 0.016): void {
     if (!this.camera || (this.state !== 'ORBIT' && this.state !== 'GALAXY')) return;
+    // Launch simulation camera is managed exclusively by CameraDirector
+    if (this.activeScenario === 'earth_launch') return;
 
-    const isSurface = useAppStore.getState().activeSurface !== 'none';
-    const isExo = useAppStore.getState().inExoSystem;
+    this.flightModeInitialized = false;
+    const storeState = useAppStore.getState();
+    const isSurface = storeState.activeSurface !== 'none';
+    const isExo = storeState.inExoSystem;
+    const isCosmicLab = storeState.activeCosmicLab !== 'none';
+    const isScenario = this.activeScenario !== 'none';
+    const simTime = SimulationClock.getInstance().simulationTime;
 
-    if (!isSurface && !isExo && this.activeFocusId && this.activeFocusId !== 'sun' && this.state === 'ORBIT') {
-      const livePos = this.getLiveBodyPosition(this.activeFocusId);
+    if (!isSurface && !isExo && !isCosmicLab && !isScenario && this.activeFocusId && this.activeFocusId !== 'sun' && this.state === 'ORBIT') {
+      const livePos = this.getLiveBodyPosition(this.activeFocusId, this.orbitFocusPos);
       this.target.copy(livePos);
+
+      if (this.activeFocusId === 'iss') {
+        // Exact 3D isometric co-rotation around ISS's 51.6°-inclined orbital plane axis (constant Earth clearance!)
+        if (this.prevFocusIdForAzimuth === 'iss' && this.prevSimTimeForOrbit !== null) {
+          const dAngle = (simTime - this.prevSimTimeForOrbit) * 0.22;
+          if (Math.abs(dAngle) > 1e-8) {
+            this.relCurScratch.setFromSpherical(this.spherical).applyAxisAngle(this.issOrbitAxis, dAngle);
+            this.relTgtScratch.setFromSpherical(this.targetSpherical).applyAxisAngle(this.issOrbitAxis, dAngle);
+            this.spherical.setFromVector3(this.relCurScratch);
+            this.targetSpherical.setFromVector3(this.relTgtScratch);
+          }
+        }
+        this.prevSimTimeForOrbit = simTime;
+        this.prevHostAzimuth = null;
+        this.prevFocusIdForAzimuth = 'iss';
+      } else if (this.activeFocusId === 'jwst') {
+        const earthPos = this.getLiveBodyPosition('earth', this.parentScratch);
+        const hostAzimuth = Math.atan2(earthPos.x, earthPos.z);
+        if (this.prevFocusIdForAzimuth === 'jwst' && this.prevHostAzimuth !== null) {
+          let dTheta = hostAzimuth - this.prevHostAzimuth;
+          while (dTheta > Math.PI) dTheta -= Math.PI * 2;
+          while (dTheta < -Math.PI) dTheta += Math.PI * 2;
+          this.spherical.theta += dTheta;
+          this.targetSpherical.theta += dTheta;
+        }
+        this.prevHostAzimuth = hostAzimuth;
+        this.prevSimTimeForOrbit = simTime;
+        this.prevFocusIdForAzimuth = 'jwst';
+      } else {
+        this.prevHostAzimuth = null;
+        this.prevSimTimeForOrbit = simTime;
+        this.prevFocusIdForAzimuth = this.activeFocusId;
+      }
+    } else {
+      this.prevHostAzimuth = null;
+      this.prevSimTimeForOrbit = null;
+      this.prevFocusIdForAzimuth = null;
     }
 
-    const damp = 1 - Math.exp(-12 * Math.min(delta, 0.05));
+    // Shortest-arc azimuth wrap across ±π branch cut so damping never whips 360° around the pole
+    while (this.targetSpherical.theta - this.spherical.theta > Math.PI) {
+      this.targetSpherical.theta -= Math.PI * 2;
+    }
+    while (this.targetSpherical.theta - this.spherical.theta < -Math.PI) {
+      this.targetSpherical.theta += Math.PI * 2;
+    }
+
+    const damp = 1 - Math.exp(-12 * Math.min(Math.max(delta, 0.001), 0.05));
     this.spherical.theta = THREE.MathUtils.lerp(this.spherical.theta, this.targetSpherical.theta, damp);
     this.spherical.phi = THREE.MathUtils.lerp(this.spherical.phi, this.targetSpherical.phi, damp);
     this.spherical.radius = THREE.MathUtils.lerp(this.spherical.radius, this.targetSpherical.radius, damp);
 
     this.camera.position.setFromSpherical(this.spherical).add(this.target);
+
+    // Prevent LEO camera from ever clipping inside Earth's crust/atmosphere as ISS orbits
+    if (!isSurface && !isExo && !isCosmicLab && !isScenario && this.activeFocusId === 'iss') {
+      const earthPos = this.getLiveBodyPosition('earth', this.parentScratch);
+      const minEarthClearance = CELESTIAL_BODIES.earth.visualRadius + 0.55;
+      this.issZenithScratch.copy(this.camera.position).sub(earthPos);
+      const distSq = this.issZenithScratch.lengthSq();
+      if (distSq > 1e-6 && distSq < minEarthClearance * minEarthClearance) {
+        this.issZenithScratch.normalize().multiplyScalar(minEarthClearance);
+        this.camera.position.copy(earthPos).add(this.issZenithScratch);
+      }
+    }
+
     this.camera.lookAt(this.target);
   }
 }

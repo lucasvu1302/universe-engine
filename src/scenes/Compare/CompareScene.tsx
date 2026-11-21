@@ -1,8 +1,25 @@
 import React, { useMemo } from 'react';
 import { StarField } from '@/entities/StarField/StarField';
 import { Planet } from '@/entities/Planet/Planet';
+import { Sun } from '@/entities/Sun/Sun';
 import { CELESTIAL_BODIES, CelestialBodyData } from '@/data/celestialData';
 import { useAppStore } from '@/stores/useAppStore';
+
+function scaleCompareBody(raw: CelestialBodyData, targetRadius: number): CelestialBodyData {
+  const ratio = raw.visualRadius > 0 ? targetRadius / raw.visualRadius : 1;
+  return {
+    ...raw,
+    visualRadius: targetRadius,
+    visualDistance: 0,
+    rings: raw.rings
+      ? {
+          ...raw.rings,
+          innerRadius: raw.rings.innerRadius * ratio,
+          outerRadius: raw.rings.outerRadius * ratio,
+        }
+      : undefined,
+  };
+}
 
 export const CompareScene: React.FC = () => {
   const planetAId = useAppStore((state) => state.comparePlanetA);
@@ -12,32 +29,34 @@ export const CompareScene: React.FC = () => {
   const rawDataA = CELESTIAL_BODIES[planetAId] || CELESTIAL_BODIES.earth;
   const rawDataB = CELESTIAL_BODIES[planetBId] || CELESTIAL_BODIES.jupiter;
 
-  // Scale computation
-  const { dataA, dataB } = useMemo(() => {
+  const { dataA, dataB, offsetX } = useMemo(() => {
     if (!trueSize) {
-      // Normal visual scale
+      const modA = { ...rawDataA, visualDistance: 0 };
+      const modB = { ...rawDataB, visualDistance: 0 };
+      const extA = modA.rings ? modA.rings.outerRadius : modA.visualRadius;
+      const extB = modB.rings ? modB.rings.outerRadius : modB.visualRadius;
       return {
-        dataA: { ...rawDataA, visualDistance: 0 },
-        dataB: { ...rawDataB, visualDistance: 0 }
+        dataA: modA,
+        dataB: modB,
+        offsetX: Math.max(20, (extA + extB) * 0.72 + 6),
       };
     }
 
-    // True relative size based on actual diameter in KM
     const maxDia = Math.max(rawDataA.diameterKm, rawDataB.diameterKm);
     const scaleFactor = 14.0 / maxDia;
+    const radA = Math.max(0.22, rawDataA.diameterKm * scaleFactor);
+    const radB = Math.max(0.22, rawDataB.diameterKm * scaleFactor);
 
-    const modA: CelestialBodyData = {
-      ...rawDataA,
-      visualRadius: Math.max(0.5, rawDataA.diameterKm * scaleFactor),
-      visualDistance: 0
-    };
-    const modB: CelestialBodyData = {
-      ...rawDataB,
-      visualRadius: Math.max(0.5, rawDataB.diameterKm * scaleFactor),
-      visualDistance: 0
-    };
+    const modA = scaleCompareBody(rawDataA, radA);
+    const modB = scaleCompareBody(rawDataB, radB);
+    const extA = modA.rings ? modA.rings.outerRadius : modA.visualRadius;
+    const extB = modB.rings ? modB.rings.outerRadius : modB.visualRadius;
 
-    return { dataA: modA, dataB: modB };
+    return {
+      dataA: modA,
+      dataB: modB,
+      offsetX: Math.max(20, (extA + extB) * 0.75 + 6),
+    };
   }, [rawDataA, rawDataB, trueSize]);
 
   return (
@@ -46,14 +65,22 @@ export const CompareScene: React.FC = () => {
       <ambientLight intensity={0.4} color="#1a2540" />
       <directionalLight position={[50, 20, 50]} intensity={2.0} color="#ffffff" />
 
-      {/* Planet A on the Left */}
-      <group position={[-20, 0, 0]}>
-        <Planet data={dataA} />
+      {/* Body A on the Left */}
+      <group position={[-offsetX, 0, 0]}>
+        {dataA.id === 'sun' ? (
+          <Sun key="compare-a-sun" radiusOverride={dataA.visualRadius} omitLights />
+        ) : (
+          <Planet key={`compare-a-${dataA.id}`} data={dataA} hideMoons sunPosition={[50, 20, 50]} />
+        )}
       </group>
 
-      {/* Planet B on the Right */}
-      <group position={[20, 0, 0]}>
-        <Planet data={dataB} />
+      {/* Body B on the Right */}
+      <group position={[offsetX, 0, 0]}>
+        {dataB.id === 'sun' ? (
+          <Sun key="compare-b-sun" radiusOverride={dataB.visualRadius} omitLights />
+        ) : (
+          <Planet key={`compare-b-${dataB.id}`} data={dataB} hideMoons sunPosition={[50, 20, 50]} />
+        )}
       </group>
     </group>
   );

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { EarthPeriod, HistoricalEvent } from "../core/types";
-import { EARTH_PERIODS, getPeriodAtMa } from "../data/earthHistoryData";
+import { EARTH_PERIODS, getPeriodAtMa, getEpochStageAtMa } from "../data/earthHistoryData";
 import { SimulationEventBus } from "../core/SimulationEventBus";
 
 export interface EarthClimateState {
@@ -33,7 +33,7 @@ export class EarthTimelineController {
       currentPeriod: initial.current,
       nextPeriod: initial.next,
       blendFactor: 0,
-      epochStage: 0,
+      epochStage: getEpochStageAtMa(-4540),
       meanTempC: initial.current.meanTempC,
       o2Percent: initial.current.o2Percent,
       co2Ppm: initial.current.co2Ppm,
@@ -62,9 +62,8 @@ export class EarthTimelineController {
     const ma = Math.min(Math.max(millionYearsAgo, -4540), 0);
     const { current, next, blendFactor } = getPeriodAtMa(ma);
 
-    // Calculate epoch stage index (0 to 5)
-    const currentIndex = EARTH_PERIODS.findIndex((p) => p.id === current.id);
-    const epochStage = Math.min(currentIndex + blendFactor, 5.0);
+    // Calculate strictly monotonic, smooth continuous epoch stage (0.0 to 5.0)
+    const epochStage = getEpochStageAtMa(ma);
 
     // Interpolate climate scalars
     const nextP = next || current;

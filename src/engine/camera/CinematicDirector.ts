@@ -25,6 +25,7 @@ export class CinematicDirector {
   // Scratch vectors
   private tempPos = new THREE.Vector3();
   private tempTarget = new THREE.Vector3();
+  private readonly deepSpaceTarget = new THREE.Vector3(0, 180, -1200);
 
   private constructor() {
     this.camManager = CameraManager.getInstance();
@@ -110,8 +111,11 @@ export class CinematicDirector {
     const store = useAppStore.getState();
     if (!store.cinemaMode) return;
 
-    this.shotTimer += delta;
-    this.shakeTime += delta;
+    const dt = Number.isFinite(delta) && delta > 0 ? Math.min(delta, 0.05) : 0;
+    if (dt === 0) return;
+
+    this.shotTimer += dt;
+    this.shakeTime += dt;
 
     // Handle Auto-Cut Director timer
     if (store.cinemaShot === 'AUTO' && this.shotTimer >= this.SHOT_DURATION) {
@@ -121,12 +125,12 @@ export class CinematicDirector {
       return;
     }
 
-    // Dynamic Camera Motion per shot
+    // Dynamic Camera Motion per shot (yield to CameraManager while an active flyTo transition is running)
     const camera = this.camManager.camera;
-    if (!camera) return;
+    if (!camera || this.camManager.state === 'TRANSITIONING') return;
 
     if (store.cinemaShot === 'ORBITAL_DRIFT' || (store.cinemaShot === 'AUTO' && this.currentShotIndex % 3 === 0)) {
-      // Tangential drift orbiting slowly around Earth
+      // Tangential drift orbiting slowly around Earth (frame-rate-independent damping)
       const earthPos = this.camManager.getLiveBodyPosition('earth', this.tempTarget);
       const angle = this.shotTimer * 0.08;
       const radius = CELESTIAL_BODIES.earth.visualRadius * 1.85;
@@ -137,10 +141,10 @@ export class CinematicDirector {
         earthPos.z + Math.sin(angle) * radius
       );
 
-      camera.position.lerp(this.tempPos, 0.04);
+      camera.position.lerp(this.tempPos, 1 - Math.exp(-2.5 * dt));
       camera.lookAt(earthPos);
     } else if (store.cinemaShot === 'RING_SKI' || (store.cinemaShot === 'AUTO' && this.currentShotIndex % 3 === 1)) {
-      // Skimming along Saturn's ring radius
+      // Skimming along Saturn's ring radius (frame-rate-independent damping)
       const saturnPos = this.camManager.getLiveBodyPosition('saturn', this.tempTarget);
       const t = this.shotTimer * 0.12;
       const ringDist = 10.5 + Math.sin(t) * 2.5;
@@ -151,11 +155,11 @@ export class CinematicDirector {
         saturnPos.z + Math.sin(t) * ringDist
       );
 
-      camera.position.lerp(this.tempPos, 0.05);
+      camera.position.lerp(this.tempPos, 1 - Math.exp(-3.1 * dt));
       camera.lookAt(saturnPos);
     } else if (store.cinemaShot === 'SLINGSHOT' || (store.cinemaShot === 'AUTO' && this.currentShotIndex % 3 === 2)) {
-      // Accelerating hyperbolic slingshot
-      this.slingshotProgress += delta * 0.18;
+      // Accelerating hyperbolic slingshot (frame-rate-independent damping)
+      this.slingshotProgress += dt * 0.18;
       const jupiterPos = this.camManager.getLiveBodyPosition('jupiter', this.tempTarget);
 
       const p = this.slingshotProgress;
@@ -164,23 +168,26 @@ export class CinematicDirector {
       const z = jupiterPos.z + Math.cos(p * Math.PI * 0.5) * 40 - p * 120;
 
       this.tempPos.set(x, y, z);
-      camera.position.lerp(this.tempPos, 0.08);
+      camera.position.lerp(this.tempPos, 1 - Math.exp(-5.0 * dt));
 
-      // Target shifts from Jupiter to deep space Gargantua
-      const deepSpaceTarget = new THREE.Vector3(0, 180, -1200);
-      const blendedTarget = this.tempTarget.lerp(deepSpaceTarget, Math.min(1.0, p * 1.5));
+      // Target shifts from Jupiter to deep space Gargantua (zero allocation)
+      const blendedTarget = this.tempTarget.lerp(this.deepSpaceTarget, Math.min(1.0, p * 1.5));
       camera.lookAt(blendedTarget);
     }
 
-    // Dynamic Camera Shake calculation (aerodynamic / gravitational turbulence)
-    const targetId = store.targetId;
-    this.shakeIntensity = targetId === 'blackhole' ? 0.045 : 0.012;
+    // Dynamic Camera Shake calculation (disabled completely when reducedMotion is active)
+    if (!store.reducedMotion) {
+      const targetId = store.targetId;
+      this.shakeIntensity = targetId === 'blackhole' ? 0.045 : 0.012;
 
-    const shakeX = Math.sin(this.shakeTime * 18.0) * this.shakeIntensity;
-    const shakeY = Math.cos(this.shakeTime * 22.0) * this.shakeIntensity;
-    const shakeZ = Math.sin(this.shakeTime * 15.0) * this.shakeIntensity;
+      const shakeX = Math.sin(this.shakeTime * 18.0) * this.shakeIntensity;
+      const shakeY = Math.cos(this.shakeTime * 22.0) * this.shakeIntensity;
+      const shakeZ = Math.sin(this.shakeTime * 15.0) * this.shakeIntensity;
 
-    this.shakeOffset.set(shakeX, shakeY, shakeZ);
-    camera.position.add(this.shakeOffset);
+      this.shakeOffset.set(shakeX, shakeY, shakeZ);
+      camera.position.add(this.shakeOffset);
+    } else {
+      this.shakeOffset.set(0, 0, 0);
+    }
   }
 }

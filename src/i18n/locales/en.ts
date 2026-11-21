@@ -15,6 +15,7 @@ export const en: TranslationSchema = {
   nav: {
     explore: 'Explore',
     planets: 'Planets',
+    constellations: 'Constellations',
     blackHole: 'Black Hole',
     galaxy: 'Galaxy',
     flight: 'Flight',
@@ -161,6 +162,78 @@ export const en: TranslationSchema = {
       displayName: 'PSR B1257+12 (Relativistic Pulsar)',
       type: 'Neutron Star',
       description: 'A millisecond pulsar with colossal magnetic field lines that accelerate charged particles into continuous relativistic lighthouse beams sweeping through deep space.'
+    },
+    iss: {
+      name: 'ISS Station',
+      displayName: 'International Space Station (ISS)',
+      type: 'Orbital Station',
+      description: 'Humanity’s permanent orbital laboratory in Low Earth Orbit at 420 km altitude, completing 15.5 orbits per day at 27,600 km/h.'
+    },
+    jwst: {
+      name: 'James Webb (JWST)',
+      displayName: 'James Webb Space Telescope (JWST)',
+      type: 'L2 Observatory',
+      description: 'Deep-infrared space observatory stationed in a halo orbit around the Sun-Earth L2 point 1.5 million km beyond Earth with an 18-segment gold beryllium mirror.'
+    },
+    voyager1: {
+      name: 'Voyager 1',
+      displayName: 'Voyager 1 Interstellar Probe',
+      type: 'Interstellar Probe',
+      description: 'The farthest human-made object in history (163 AU), cruising through interstellar space beyond the heliopause carrying the Golden Record.'
+    },
+    voyager2: {
+      name: 'Voyager 2',
+      displayName: 'Voyager 2 Grand Tour Probe',
+      type: 'Interstellar Probe',
+      description: 'The only spacecraft to have visited all four giant outer planets—Jupiter, Saturn, Uranus, and Neptune—now exploring interstellar space.'
+    },
+    constellation_orion: {
+      name: 'Orion',
+      displayName: 'Orion (The Hunter)',
+      type: 'Constellation',
+      description: 'Crown jewel of the winter night sky featuring the three-star Belt, blue supergiant Rigel, red supergiant Betelgeuse, and the naked-eye Orion Nebula (M42) nursery.'
+    },
+    constellation_ursa_major: {
+      name: 'Ursa Major',
+      displayName: 'Ursa Major (Great Bear & Big Dipper)',
+      type: 'Constellation',
+      description: 'Third-largest IAU constellation, famed for the seven-star Big Dipper pointer asterism toward Polaris and the interacting galaxy pair M81 and M82.'
+    },
+    constellation_cassiopeia: {
+      name: 'Cassiopeia',
+      displayName: 'Cassiopeia (The Seated Queen)',
+      type: 'Constellation',
+      description: 'Unmistakable five-star W asterism gleaming inside the northern Milky Way band, home to young X-ray supernova remnant Cassiopeia A.'
+    },
+    constellation_cygnus: {
+      name: 'Cygnus',
+      displayName: 'Cygnus (The Swan · Northern Cross)',
+      type: 'Constellation',
+      description: 'Soaring along the summer Milky Way rift with luminous supergiant Deneb and historic stellar-mass black hole binary Cygnus X-1.'
+    },
+    constellation_scorpius: {
+      name: 'Scorpius',
+      displayName: 'Scorpius (The Scorpion)',
+      type: 'Constellation',
+      description: 'Dramatic southern zodiacal constellation sweeping near the Galactic Center, anchored by crimson supergiant Antares and globular cluster M4.'
+    },
+    constellation_crux: {
+      name: 'Crux',
+      displayName: 'Crux (The Southern Cross)',
+      type: 'Constellation',
+      description: 'Smallest yet most concentrated first-magnitude constellation in the southern sky, guiding mariners to the South Celestial Pole beside the Jewel Box cluster.'
+    },
+    constellation_leo: {
+      name: 'Leo',
+      displayName: 'Leo (The Lion)',
+      type: 'Constellation',
+      description: 'Classic spring zodiacal Lion defined by its trapezoid body, the Sickle mane around blue-white Regulus, and the interacting Leo Triplet of galaxies (M65, M66).'
+    },
+    constellation_taurus: {
+      name: 'Taurus',
+      displayName: 'Taurus (The Bull & Pleiades)',
+      type: 'Constellation',
+      description: 'Ancient zodiacal Bull showcasing fiery orange giant Aldebaran, the sparkling Pleiades (M45) open cluster, and the Crab Nebula pulsar remnant (M1).'
     }
   },
   targetHud: {
@@ -170,6 +243,14 @@ export const en: TranslationSchema = {
     knownMoons: 'Known Moons',
     orbitPeriod: 'Orbit Period',
     pulsarPlanets: 'Pulsar Planets',
+    brightestStar: 'Brightest Star',
+    skyArea: 'Sky Area',
+    starDistance: 'Star Distance',
+    deepSkyObjects: 'Deep-Sky Gems',
+    constellationDossier: 'Mythology Review & Observing Guide',
+    mythologyHeading: 'Mythology & Star-Hopping Lore',
+    bestSeasonHeading: 'Best Viewing Season',
+    neighborConstellationsHeading: 'Neighboring Constellations (Click To Pan)',
     focusTarget: 'Focus Camera on Target',
     supermassiveSingularity: 'Supermassive Singularity (Deep Space)',
     neutronStar: 'High-Energy Relativistic Neutron Star',
@@ -317,5 +398,75 @@ export const en: TranslationSchema = {
     cmdOrbits: 'Toggle Keplerian Orbit Paths',
     cmdSound: 'Toggle Spatial Audio Soundscape',
     cmdUltraGraphics: 'Graphics: ULTRA Quality Preset'
+  },
+  vip: {
+    starMapLabel: 'Star Map',
+    starMapTooltip: 'Toggle 3D Constellation Sky-Map & Goldilocks Habitable Zone',
+    radarTitle: 'ORBITAL RADAR',
+    radarExpand: 'Open Orbital Radar',
+    radarCollapse: 'Minimize Radar',
+    lightDelay: 'Light Delay',
+    earthGravityRatio: 'Earth Gravity',
+    deepDossier: 'Deep Astrophysics Dossier',
+    hideDossier: 'Hide Dossier',
+    mass: 'Total Mass',
+    dayLength: 'Rotation Period',
+    axialTilt: 'Axial Obliquity',
+    moonsHeading: 'Natural Moons (Click To Fly)',
+    saveView: 'Save Viewpoint',
+    savedViews: 'Saved VIP Viewpoints',
+    noSavedViews: 'No saved viewpoints yet',
+    quickLandMars: 'Land on Mars 3D',
+    quickLandMoon: 'Land on Moon 3D',
+    quickLaunchRocket: 'Launch 3D Spacecraft',
+    quickEarthHistory: 'Earth History 4.54 Ga',
+    quickRingSki: 'Ring-Ski Flyby',
+    quickWormhole: 'Enter 4D Wormhole',
+    quickSlingshot: 'Gravity Slingshot'
+  },
+  cosmic: {
+    sectionTitle: 'New 3D Cosmic Observatory & Labs',
+    solarStormTitle: '3D Solar Storm, Magnetosphere & Aurora',
+    solarStormSub: 'CME plasma, dipole shield & polar aurora curtains',
+    eclipseTitle: 'Total Solar Eclipse & Blood Moon 3D',
+    eclipseSub: 'Diamond Ring, Corona, Orbital Umbra & Blood Moon',
+    binaryMergerTitle: 'Binary Black Hole Merger & LIGO Waves',
+    binaryMergerSub: 'Spacetime quadrupole ripples & Web Audio chirp',
+    landEuropaTitle: 'Land on Europa Ice Shell 3D',
+    landEuropaSub: 'Fractured ice crust, cryogeysers & giant Jupiter',
+    landTitanTitle: 'Land on Titan Shoreline 3D',
+    landTitanSub: 'Dense amber haze, methane lake & Huygens probe',
+    hohmannTitle: 'Hohmann Transfer Mission Planner',
+    hohmannSub: 'Offline geocentric/heliocentric Δv & Gravity Assist',
+    stellarLabTitle: '3D Volumetric Nebulae & Stellar Lab',
+    stellarLabSub: 'Pillars of Creation M16, Crab M1 & live H-R diagram',
+    planetariumTitle: '360° Night Sky Planetarium & Telescope',
+    planetariumSub: 'Real Alt/Az sky dome, Meteor Showers & Optical Zoom',
+    megaHubTitle: 'Cosmic Observatory Hub',
+    megaHubSearch: 'Search labs, surfaces, physics & tools...',
+    megaHubRecent: 'Recently opened',
+    megaHubEmpty: 'No matching cosmic experiences found.',
+    tabAll: 'All',
+    tabPhysics: 'Physics & Black Holes',
+    tabSurfaces: 'Surfaces & Cutaway',
+    tabPlanets: 'Planets & Engineering',
+    tabDeepSpace: 'Deep Space & Galaxies',
+    tabTools: 'Tools & Cinema',
+    nbodyTitle: 'Three-Body & N-Body Gravity Sandbox',
+    nbodySub: 'Chaotic Trisolaris, Figure-8 orbit, Habitable Zone & Roche limit',
+    marsTerraformTitle: 'Mars Terraforming 1,000-Year Sim',
+    marsTerraformSub: 'Polar melt, northern ocean, blue atmosphere & green biosphere',
+    cutawayTitle: '3D Planetary & Stellar Interior Cutaway',
+    cutawaySub: 'Interactive cross-sections of Earth, Sun, Jupiter, Europa & Neutron Star',
+    defenseTitle: 'Planetary Defense · DART & Apophis',
+    defenseSub: 'Kinetic impactor, Gravity Tractor & Laser ablation deflection',
+    trappistTitle: 'TRAPPIST-1 Exoplanets & Transit Curve',
+    trappistSub: '7 resonant worlds, TRAPPIST-1e sky view & live Kepler light curve',
+    dysonTitle: 'Dyson Swarm & O’Neill Cylinder',
+    dysonSub: 'Kardashev Type II solar collectors & rotating 1g space habitat',
+    relativityTitle: 'Relativity, Einstein Ring & Black Hole Dive',
+    relativitySub: 'Lorentz/Kerr clocks, gravitational lensing & first-person plunge',
+    kesslerTitle: 'Kessler Syndrome & LEO Satellite Map',
+    kesslerSub: '2,000+ LEO/MEO/GEO satellites & cascading orbital debris field'
   }
 };

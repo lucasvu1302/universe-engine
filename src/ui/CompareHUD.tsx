@@ -24,9 +24,9 @@ export const CompareHUD: React.FC = () => {
 
   return (
     <div className="fixed inset-x-0 bottom-6 z-40 flex justify-center px-4 pointer-events-none">
-      <div className="glass-panel-glow w-full max-w-2xl p-5 rounded-3xl border border-indigo-500/40 pointer-events-auto space-y-4 shadow-2xl">
+      <div className="glass-panel-glow w-full max-w-2xl p-3.5 sm:p-5 rounded-3xl border border-indigo-500/40 pointer-events-auto space-y-3 sm:space-y-4 shadow-2xl">
         {/* Header & Controls */}
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5 sm:pb-3">
           <div className="flex items-center space-x-2 text-indigo-400">
             <Scale className="w-5 h-5" />
             <span className="text-xs font-mono font-bold tracking-wider uppercase">
@@ -53,11 +53,14 @@ export const CompareHUD: React.FC = () => {
             </button>
 
             <button
+              type="button"
+              aria-label={t('common.close')}
+              title={t('common.close')}
               onClick={() => {
                 AudioManager.getInstance().playUIClick();
                 setCompareMode(false);
               }}
-              className="p-1 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+              className="p-1 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-all cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -65,11 +68,11 @@ export const CompareHUD: React.FC = () => {
         </div>
 
         {/* Planet Selectors */}
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-3 sm:gap-6">
           {/* Planet A Selector */}
           <div>
             <label className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block mb-1">
-              Body A
+              {language === 'vi' ? 'Thiên Thể A' : 'Body A'}
             </label>
             <select
               value={planetAId}

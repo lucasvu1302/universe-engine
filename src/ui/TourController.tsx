@@ -7,7 +7,7 @@ import { AudioManager } from '@/engine/audio/AudioManager';
 import { useTranslation } from '@/i18n';
 
 export const TourController: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const activeTour = useAppStore((state) => state.activeTour);
   const tourIndex = useAppStore((state) => state.tourIndex);
   const nextTourStep = useAppStore((state) => state.nextTourStep);
@@ -45,7 +45,7 @@ export const TourController: React.FC = () => {
   const planetData = currentId ? getLocalizedBodyData(currentId) : null;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-md pointer-events-auto">
+    <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 w-full max-w-md px-3 pointer-events-auto">
       <div className="glass-panel-glow p-4 rounded-2xl border border-amber-500/30 space-y-3">
         {/* Header & Status */}
         <div className="flex items-center justify-between text-xs">
@@ -57,12 +57,14 @@ export const TourController: React.FC = () => {
           </div>
 
           <button
+            type="button"
+            aria-label={t('common.exit')}
             onClick={() => {
               AudioManager.getInstance().playUIClick();
               stopTour();
             }}
-            className="p-1 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-all"
-            title="Exit Tour"
+            className="p-1 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-all cursor-pointer"
+            title={t('common.exit')}
           >
             <X className="w-4 h-4" />
           </button>
@@ -87,33 +89,50 @@ export const TourController: React.FC = () => {
         {/* Media Controls */}
         <div className="flex items-center justify-center space-x-3 pt-1">
           <button
+            type="button"
+            aria-label={language === 'vi' ? 'Điểm đến trước' : 'Previous destination'}
+            title={language === 'vi' ? 'Điểm đến trước' : 'Previous destination'}
             onClick={() => {
               AudioManager.getInstance().playUIClick();
               prevTourStep();
             }}
             disabled={tourIndex === 0}
-            className="p-2 rounded-full glass-panel hover:bg-white/10 text-slate-300 disabled:opacity-30 disabled:pointer-events-none transition-all"
+            className="p-2 rounded-full glass-panel hover:bg-white/10 text-slate-300 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
           >
             <SkipBack className="w-4 h-4" />
           </button>
 
           <button
+            type="button"
+            aria-label={
+              isTourPaused
+                ? language === 'vi' ? 'Tiếp tục tham quan' : 'Resume tour'
+                : language === 'vi' ? 'Tạm dừng tham quan' : 'Pause tour'
+            }
+            title={
+              isTourPaused
+                ? language === 'vi' ? 'Tiếp tục tham quan' : 'Resume tour'
+                : language === 'vi' ? 'Tạm dừng tham quan' : 'Pause tour'
+            }
             onClick={() => {
               AudioManager.getInstance().playUIClick();
               setIsTourPaused(!isTourPaused);
             }}
-            className="p-3 rounded-full bg-amber-500 hover:bg-amber-400 text-black font-bold shadow-lg shadow-amber-500/30 transition-all"
+            className="p-3 rounded-full bg-amber-500 hover:bg-amber-400 text-black font-bold shadow-lg shadow-amber-500/30 transition-all cursor-pointer"
           >
             {isTourPaused ? <Play className="w-4 h-4 fill-black" /> : <Pause className="w-4 h-4 fill-black" />}
           </button>
 
           <button
+            type="button"
+            aria-label={language === 'vi' ? 'Điểm đến tiếp theo' : 'Next destination'}
+            title={language === 'vi' ? 'Điểm đến tiếp theo' : 'Next destination'}
             onClick={() => {
               AudioManager.getInstance().playUIClick();
               nextTourStep();
             }}
             disabled={tourIndex >= TOUR_SEQUENCE.length - 1}
-            className="p-2 rounded-full glass-panel hover:bg-white/10 text-slate-300 disabled:opacity-30 disabled:pointer-events-none transition-all"
+            className="p-2 rounded-full glass-panel hover:bg-white/10 text-slate-300 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
           >
             <SkipForward className="w-4 h-4" />
           </button>

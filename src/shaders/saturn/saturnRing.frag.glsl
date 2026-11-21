@@ -12,95 +12,92 @@ varying vec3 vLocalPosition;
 varying vec3 vNormal;
 
 void main() {
-  // Exact per-fragment radial distance in ring local plane
   float localR = length(vLocalPosition.xy);
 
-  // Geometric boundary safety check
   if (localR < uInnerRadius || localR > uOuterRadius) {
     discard;
   }
 
-  // Normalized radial coordinate r in [0, 1] across the entire ring system
   float r = clamp((localR - uInnerRadius) / max(0.001, (uOuterRadius - uInnerRadius)), 0.0, 1.0);
 
-  // 1. Analytical Photorealistic Saturn Ring Architecture (NASA Cassini-Huygens data)
-  // Multi-frequency gravitational density waves & micro-grooves
-  float microGrooves =
-    sin(r * 320.0) * 0.055 +
-    sin(r * 740.0) * 0.035 +
-    sin(r * 1680.0) * 0.02 +
-    sin(r * 3400.0) * 0.012;
+  // Analytical screen-space derivative fwidth(r) eliminates Moire shimmer at orbital distances
+  // while preserving razor-sharp Cassini micro-ringlets in close-ups
+  float dr = max(fwidth(r), 0.00005);
+  float aa320  = exp(-pow(320.0  * dr * 0.55, 2.0));
+  float aa740  = exp(-pow(740.0  * dr * 0.55, 2.0));
+  float aa1680 = exp(-pow(1680.0 * dr * 0.55, 2.0));
+  float aa3400 = exp(-pow(3400.0 * dr * 0.55, 2.0));
 
+  float microGrooves =
+    sin(r * 320.0)  * 0.055 * aa320 +
+    sin(r * 740.0)  * 0.036 * aa740 +
+    sin(r * 1680.0) * 0.022 * aa1680 +
+    sin(r * 3400.0) * 0.014 * aa3400;
+
+  float edgeSoft = max(dr * 1.4, 0.0012);
   float density = 0.0;
   vec3 baseColor = vec3(0.92, 0.85, 0.72);
 
   if (r < 0.12) {
-    // Ring D: faint ethereal inner dust ring
-    density = smoothstep(0.01, 0.10, r) * 0.18;
-    baseColor = vec3(0.68, 0.62, 0.52);
+    // Ring D: gossamer inner dust sheet
+    density = smoothstep(0.01, 0.10, r) * 0.17;
+    baseColor = vec3(0.68, 0.62, 0.53);
   } else if (r < 0.36) {
-    // Ring C (Crepe Ring): translucent smoky amber
+    // Ring C (Crepe Ring): translucent smoky quartz-ice
     float t = (r - 0.12) / 0.24;
-    density = clamp(0.28 + sin(t * 36.0) * 0.04 + microGrooves * 0.5, 0.15, 0.45);
-    baseColor = vec3(0.80, 0.72, 0.58);
+    float cWave = sin(t * 36.0) * 0.04 * exp(-pow(150.0 * dr * 0.5, 2.0));
+    density = clamp(0.28 + cWave + microGrooves * 0.5, 0.14, 0.45);
+    baseColor = vec3(0.80, 0.73, 0.60);
 
-    // Maxwell Gap
-    if (r > 0.275 && r < 0.292) {
-      density = 0.03;
-    }
+    // Anti-aliased Maxwell Gap
+    float maxwellGap = smoothstep(0.275 - edgeSoft, 0.275 + edgeSoft, r) *
+                       (1.0 - smoothstep(0.292 - edgeSoft, 0.292 + edgeSoft, r));
+    density = mix(density, 0.025, maxwellGap);
   } else if (r < 0.725) {
-    // Ring B: the brilliant, dense, massive core ring
+    // Ring B: dense bright water-ice core with color-banded optical depth variations
     float t = (r - 0.36) / 0.365;
-    float innerRamp = smoothstep(0.0, 0.04, t);
-    density = clamp((0.85 + microGrooves) * innerRamp, 0.68, 0.98);
-    // Golden-cream pure water ice
-    baseColor = vec3(0.96, 0.89, 0.76);
+    float innerRamp = smoothstep(0.0, 0.035, t);
+    float bandTone = 0.5 + 0.5 * sin(t * 22.0) * aa320;
+    density = clamp((0.86 + microGrooves) * innerRamp, 0.68, 0.98);
+    baseColor = mix(vec3(0.91, 0.83, 0.69), vec3(0.98, 0.92, 0.80), bandTone);
   } else if (r < 0.775) {
-    // CASSINI DIVISION: 4,800 km wide transparent vacuum void
+    // Cassini Division: 4,800 km cleared orbital resonance gap with faint Huygens ringlet
     float t = (r - 0.725) / 0.05;
-    density = sin(t * 3.14159265) * 0.025; // Pure empty space, stars visible right through
-    baseColor = vec3(0.35, 0.30, 0.25);
+    density = sin(t * 3.14159265) * 0.028;
+    baseColor = vec3(0.38, 0.33, 0.28);
   } else if (r < 0.965) {
-    // Ring A: translucent pearlescent silver-ice outer main ring
-    float t = (r - 0.775) / 0.19;
-    density = clamp(0.65 + microGrooves * 0.8, 0.48, 0.78);
-    baseColor = vec3(0.88, 0.81, 0.70);
+    // Ring A: pearlescent outer main ring
+    density = clamp(0.66 + microGrooves * 0.85, 0.48, 0.79);
+    baseColor = vec3(0.88, 0.82, 0.72);
 
-    // Encke Gap: razor-sharp 325 km clear gap cleared by moon Pan
-    if (r > 0.908 && r < 0.924) {
-      density = 0.015;
-    }
-
-    // Keeler Gap near outer rim cleared by moon Daphnis
-    if (r > 0.954 && r < 0.961) {
-      density = 0.02;
-    }
+    // Anti-aliased Encke Gap (325 km) & Keeler Gap (35 km)
+    float enckeMask = smoothstep(0.908 - edgeSoft, 0.908 + edgeSoft, r) *
+                      (1.0 - smoothstep(0.924 - edgeSoft, 0.924 + edgeSoft, r));
+    float keelerMask = smoothstep(0.954 - edgeSoft, 0.954 + edgeSoft, r) *
+                       (1.0 - smoothstep(0.961 - edgeSoft, 0.961 + edgeSoft, r));
+    density = mix(density, 0.015, clamp(enckeMask + keelerMask, 0.0, 1.0));
   } else if (r < 0.982) {
-    // Outer gap
     density = 0.01;
   } else {
-    // Ring F: delicate narrow shepherd ring held by Prometheus and Pandora
+    // Ring F: narrow braided shepherd ringlet
     float t = (r - 0.982) / 0.018;
-    density = sin(t * 3.14159265) * 0.38;
-    baseColor = vec3(0.86, 0.79, 0.68);
+    density = sin(t * 3.14159265) * 0.42;
+    baseColor = vec3(0.87, 0.80, 0.70);
   }
 
-  // Pure vacuum discard
-  if (density < 0.015) {
+  if (density < 0.014) {
     discard;
   }
 
-  // 2. Icy Grain Optical Scattering (Mie & Rayleigh on micron water ice)
+  // Micron water-ice Mie forward scattering & Seeliger opposition surge
   vec3 sunDir = normalize(uSunPosition - vWorldPosition);
   vec3 viewDir = normalize(cameraPosition - vWorldPosition);
 
   float cosTheta = dot(-viewDir, sunDir);
-  // Forward scattering peak when backlighted by the Sun
-  float forwardScatter = 1.0 + pow(max(cosTheta, 0.0), 3.8) * 1.8;
-  // Opposition surge when Sun is directly behind camera
-  float backScatter = 1.0 + pow(max(-cosTheta, 0.0), 4.2) * 0.9;
+  float forwardScatter = 1.0 + pow(max(cosTheta, 0.0), 4.0) * 1.75;
+  float oppositionSurge = 1.0 + pow(max(-cosTheta, 0.0), 5.0) * 0.95;
 
-  // 3. Planetary Shadow Projection (Ray-Sphere intersection test)
+  // Saturn globe shadow ray-sphere intersection with soft solar penumbra
   vec3 oc = uPlanetCenter - vWorldPosition;
   float tproj = dot(oc, sunDir);
   float shadow = 1.0;
@@ -108,17 +105,14 @@ void main() {
   if (tproj > 0.0) {
     float distSq = dot(oc, oc) - (tproj * tproj);
     float radiusSq = uPlanetRadius * uPlanetRadius;
-    if (distSq < radiusSq * 1.04) {
-      // Soft penumbra shadow boundary
-      shadow = smoothstep(radiusSq * 0.94, radiusSq * 1.01, distSq);
+    if (distSq < radiusSq * 1.05) {
+      shadow = smoothstep(radiusSq * 0.93, radiusSq * 1.02, distSq);
     }
   }
 
-  // 4. Double-sided Lighting on Ring Plane
-  float lightFactor = abs(dot(vNormal, sunDir)) * 0.65 + 0.35;
-  vec3 finalColor = baseColor * lightFactor * forwardScatter * backScatter * (shadow * 0.92 + 0.08);
-
-  float alpha = clamp(density * (0.86 + forwardScatter * 0.14), 0.0, 0.96);
+  float lightFactor = abs(dot(normalize(vNormal), sunDir)) * 0.62 + 0.38;
+  vec3 finalColor = baseColor * lightFactor * forwardScatter * oppositionSurge * (shadow * 0.94 + 0.06);
+  float alpha = clamp(density * (0.86 + forwardScatter * 0.12), 0.0, 0.97);
 
   gl_FragColor = vec4(finalColor, alpha);
 }

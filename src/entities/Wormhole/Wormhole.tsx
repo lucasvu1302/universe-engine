@@ -1,6 +1,7 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { AssetManager } from '@/engine/assets/AssetManager';
 import wormholeVert from '@/shaders/wormhole/wormhole4d.vert.glsl';
 import wormholeFrag from '@/shaders/wormhole/wormhole4d.frag.glsl';
 
@@ -11,23 +12,43 @@ interface WormholeProps {
 
 export const Wormhole: React.FC<WormholeProps> = ({
   position = [195, 12, 110],
-  onEnterWormhole
+  onEnterWormhole,
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const matRef = useRef<THREE.ShaderMaterial>(null);
-  const ringRef = useRef<THREE.Mesh>(null);
+  const haloSpriteRef = useRef<THREE.Sprite>(null);
+  const wormholeWorldPos = useRef(new THREE.Vector3());
+
+  const softGlowMap = useMemo(() => AssetManager.getInstance().getSoftParticleMap(), []);
+
+  const uniforms = useMemo(
+    () => ({
+      uTime: { value: 0.0 },
+      uColorA: { value: new THREE.Color('#0f172a') },
+      uColorB: { value: new THREE.Color('#38bdf8') },
+    }),
+    []
+  );
+
+  useEffect(() => {
+    const m = meshRef.current;
+    const mat = matRef.current;
+    const sprite = haloSpriteRef.current;
+    return () => {
+      m?.geometry?.dispose();
+      mat?.dispose();
+      sprite?.material?.dispose();
+    };
+  }, []);
 
   useFrame((state, delta) => {
     if (matRef.current) {
       matRef.current.uniforms.uTime.value += delta;
     }
-    if (ringRef.current) {
-      ringRef.current.rotation.z += delta * 0.2;
-    }
 
-    // Proximity check to camera
     if (meshRef.current && onEnterWormhole) {
-      const dist = state.camera.position.distanceTo(meshRef.current.position);
+      meshRef.current.getWorldPosition(wormholeWorldPos.current);
+      const dist = state.camera.position.distanceTo(wormholeWorldPos.current);
       if (dist < 14.0) {
         onEnterWormhole();
       }
@@ -36,7 +57,7 @@ export const Wormhole: React.FC<WormholeProps> = ({
 
   return (
     <group position={position}>
-      {/* 4D Gravitational Lensing Throat Sphere */}
+      {/* Spherical 4D Ellis-Thorne Gravitational Crystal Throat */}
       <mesh
         ref={meshRef}
         onClick={(e) => {
@@ -44,35 +65,30 @@ export const Wormhole: React.FC<WormholeProps> = ({
           if (onEnterWormhole) onEnterWormhole();
         }}
       >
-        <sphereGeometry args={[7.5, 64, 32]} />
+        <sphereGeometry args={[7.5, 64, 48]} />
         <shaderMaterial
           ref={matRef}
           vertexShader={wormholeVert}
           fragmentShader={wormholeFrag}
-          uniforms={{
-            uTime: { value: 0.0 },
-            uColorA: { value: new THREE.Color('#1e1b4b') },
-            uColorB: { value: new THREE.Color('#0369a1') }
-          }}
+          uniforms={uniforms}
           transparent
-          side={THREE.DoubleSide}
+          side={THREE.FrontSide}
         />
       </mesh>
 
-      {/* Optical Accretion Halos */}
-      <mesh ref={ringRef} rotation={[Math.PI / 3, 0, 0]}>
-        <ringGeometry args={[8.0, 12.5, 64]} />
-        <meshBasicMaterial
-          color="#38bdf8"
+      {/* Subtle Optical Einstein-Ring Atmospheric Caustic Halo */}
+      <sprite ref={haloSpriteRef} scale={[22, 22, 1]} raycast={() => null}>
+        <spriteMaterial
+          map={softGlowMap}
+          color="#7dd3fc"
           transparent
-          opacity={0.4}
-          side={THREE.DoubleSide}
+          opacity={0.28}
           blending={THREE.AdditiveBlending}
+          depthWrite={false}
         />
-      </mesh>
+      </sprite>
 
-      {/* Interactive Tag / Beacon */}
-      <pointLight color="#38bdf8" intensity={2.5} distance={50} />
+      <pointLight color="#7dd3fc" intensity={2.2} distance={55} />
     </group>
   );
 };

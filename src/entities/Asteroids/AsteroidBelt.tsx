@@ -2,6 +2,8 @@ import React, { useMemo, useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { SimulationClock } from '@/engine/simulation/SimulationClock';
+import { useAppStore } from '@/stores/useAppStore';
+import { PerformanceManager } from '@/engine/performance/PerformanceManager';
 
 interface AsteroidBeltProps {
   count?: number;
@@ -10,11 +12,18 @@ interface AsteroidBeltProps {
 }
 
 export const AsteroidBelt: React.FC<AsteroidBeltProps> = ({
-  count = 2000,
+  count,
   innerRadius = 105,
   outerRadius = 125
 }) => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
+  const quality = useAppStore((state) => state.graphicsQuality);
+  const detectedGPUTier = useAppStore((state) => state.detectedGPUTier);
+
+  const effectiveCount = useMemo(
+    () => count ?? PerformanceManager.getInstance().getQualityProfile(quality, detectedGPUTier).asteroidCount,
+    [count, quality, detectedGPUTier]
+  );
 
   // Scratch objects for matrix calculations
   const dummy = useMemo(() => new THREE.Object3D(), []);
@@ -22,7 +31,7 @@ export const AsteroidBelt: React.FC<AsteroidBeltProps> = ({
   // Precompute orbital parameters for each asteroid instance
   const asteroidData = useMemo(() => {
     const data = [];
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < effectiveCount; i++) {
       const radius = THREE.MathUtils.lerp(innerRadius, outerRadius, Math.random());
       const angle = Math.random() * Math.PI * 2;
       const speed = (0.35 / Math.sqrt(radius)) * (0.8 + Math.random() * 0.4);
@@ -42,11 +51,11 @@ export const AsteroidBelt: React.FC<AsteroidBeltProps> = ({
       });
     }
     return data;
-  }, [count, innerRadius, outerRadius]);
+  }, [effectiveCount, innerRadius, outerRadius]);
 
   useEffect(() => {
     if (!meshRef.current) return;
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < effectiveCount; i++) {
       const item = asteroidData[i];
       dummy.position.set(
         Math.cos(item.angle) * item.radius,
@@ -58,7 +67,32 @@ export const AsteroidBelt: React.FC<AsteroidBeltProps> = ({
       meshRef.current.setMatrixAt(i, dummy.matrix);
     }
     meshRef.current.instanceMatrix.needsUpdate = true;
-  }, [asteroidData, count, dummy]);
+  }, [asteroidData, effectiveCount, dummy]);
+
+  const asteroidGeo = useMemo(() => new THREE.DodecahedronGeometry(1, 0), []);
+  const asteroidMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: '#736b63',
+        roughness: 0.9,
+        metalness: 0.1
+      }),
+    []
+  );
+
+  useEffect(() => {
+    return () => {
+      asteroidGeo.dispose();
+      asteroidMat.dispose();
+    };
+  }, [asteroidGeo, asteroidMat]);
+
+  useEffect(() => {
+    const mesh = meshRef.current;
+    return () => {
+      mesh?.dispose?.();
+    };
+  }, [effectiveCount]);
 
   useFrame(() => {
     if (!meshRef.current) return;
@@ -71,14 +105,7 @@ export const AsteroidBelt: React.FC<AsteroidBeltProps> = ({
   return (
     <instancedMesh
       ref={meshRef}
-      args={[undefined, undefined, count]}
-    >
-      <dodecahedronGeometry args={[1, 0]} />
-      <meshStandardMaterial
-        color="#736b63"
-        roughness={0.9}
-        metalness={0.1}
-      />
-    </instancedMesh>
+      args={[asteroidGeo, asteroidMat, effectiveCount]}
+    />
   );
 };

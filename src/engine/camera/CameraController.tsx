@@ -15,14 +15,30 @@ export const CameraController: React.FC = () => {
   const isPanning = useRef(false);
   const prevPointer = useRef({ x: 0, y: 0 });
   const touchDistance = useRef<number | null>(null);
+  const flightKeysRef = useRef({
+    forward: false,
+    backward: false,
+    left: false,
+    right: false,
+    up: false,
+    down: false,
+    boost: false,
+    precision: false,
+    brake: false
+  });
 
   useEffect(() => {
     camManager.setCamera(camera as THREE.PerspectiveCamera);
   }, [camera, camManager]);
 
   useEffect(() => {
+    // Always discard any prior ORBIT/UI pointer drag deltas on camera mode transitions
+    input.resetDeltas();
+    if (cameraMode === 'FREE_FLIGHT') {
+      camManager.cancelActiveTransition();
+    }
     camManager.state = cameraMode;
-  }, [cameraMode, camManager]);
+  }, [cameraMode, camManager, input]);
 
   // Handle pointer & touch interactions
   useEffect(() => {
@@ -40,6 +56,8 @@ export const CameraController: React.FC = () => {
       const deltaX = e.clientX - prevPointer.current.x;
       const deltaY = e.clientY - prevPointer.current.y;
       prevPointer.current = { x: e.clientX, y: e.clientY };
+
+      if (camManager.activeScenario === 'earth_launch') return;
 
       if (camManager.state === 'ORBIT' || camManager.state === 'GALAXY') {
         if (isPanning.current) {
@@ -63,6 +81,7 @@ export const CameraController: React.FC = () => {
     // Smooth exponential wheel zoom
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      if (camManager.activeScenario === 'earth_launch') return;
       if (camManager.state === 'ORBIT' || camManager.state === 'GALAXY') {
         camManager.zoomOrbit(e.deltaY);
       }
@@ -70,6 +89,7 @@ export const CameraController: React.FC = () => {
 
     // Mobile Pinch-to-Zoom
     const onTouchMove = (e: TouchEvent) => {
+      if (camManager.activeScenario === 'earth_launch') return;
       if (e.touches.length === 2 && (camManager.state === 'ORBIT' || camManager.state === 'GALAXY')) {
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -106,9 +126,29 @@ export const CameraController: React.FC = () => {
     };
   }, [gl, camManager]);
 
-  // Frame Loop logic
+  // Frame Loop logic (runs at priority -1 right after EngineLoop -2 and BEFORE all scene useFrame(0) readers!)
   useFrame((_, delta) => {
+    if (camManager.activeScenario === 'earth_launch') {
+      input.resetDeltas();
+      return;
+    }
+
+    if (camManager.state === 'TRANSITIONING') {
+      input.resetDeltas();
+      camManager.updateTransition(delta);
+      return;
+    }
+
+    // Do not overwrite CinematicDirector's choreographed camera while cinemaMode is active
+    if (useAppStore.getState().cinemaMode) {
+      input.resetDeltas();
+      return;
+    }
+
     if (camManager.state === 'ORBIT' || camManager.state === 'GALAXY') {
+      // Discard pointer deltas accumulated outside FREE_FLIGHT so entering FREE_FLIGHT never whips frame 1
+      input.resetDeltas();
+
       // Arrow keys camera movement support
       const up = input.isKeyPressed('ArrowUp');
       const down = input.isKeyPressed('ArrowDown');
@@ -116,7 +156,7 @@ export const CameraController: React.FC = () => {
       const right = input.isKeyPressed('ArrowRight');
 
       if (up || down || left || right) {
-        const panSpeed = delta * 420;
+        const panSpeed = Math.min(Math.max(delta, 0), 0.05) * 420;
         let panX = 0;
         let panY = 0;
         if (left) panX += panSpeed;
@@ -128,25 +168,31 @@ export const CameraController: React.FC = () => {
 
       camManager.updateOrbit(delta);
     } else if (camManager.state === 'FREE_FLIGHT') {
-      camManager.updateFreeFlight(
-        delta,
-        {
-          forward: input.isKeyPressed('w') || input.isKeyPressed('KeyW'),
-          backward: input.isKeyPressed('s') || input.isKeyPressed('KeyS'),
-          left: input.isKeyPressed('a') || input.isKeyPressed('KeyA'),
-          right: input.isKeyPressed('d') || input.isKeyPressed('KeyD'),
-          up: input.isKeyPressed('e') || input.isKeyPressed('KeyE'),
-          down: input.isKeyPressed('q') || input.isKeyPressed('KeyQ'),
-          boost: input.isKeyPressed('Shift') || input.isKeyPressed('ShiftLeft'),
-          precision: input.isKeyPressed('Control') || input.isKeyPressed('Alt'),
-          brake: input.isKeyPressed(' ') || input.isKeyPressed('Space')
-        },
-        input.deltaX,
-        input.deltaY
-      );
+      const fk = flightKeysRef.current;
+      fk.forward = input.isKeyPressed('w') || input.isKeyPressed('KeyW');
+      fk.backward = input.isKeyPressed('s') || input.isKeyPressed('KeyS');
+      fk.left = input.isKeyPressed('a') || input.isKeyPressed('KeyA');
+      fk.right = input.isKeyPressed('d') || input.isKeyPressed('KeyD');
+      fk.up =
+        input.isKeyPressed('e') ||
+        input.isKeyPressed('KeyE') ||
+        input.isKeyPressed('r') ||
+        input.isKeyPressed('KeyR');
+      fk.down =
+        input.isKeyPressed('q') ||
+        input.isKeyPressed('KeyQ') ||
+        input.isKeyPressed('f') ||
+        input.isKeyPressed('KeyF');
+      fk.boost = input.isKeyPressed('Shift') || input.isKeyPressed('ShiftLeft');
+      fk.precision = input.isKeyPressed('Control') || input.isKeyPressed('Alt');
+      fk.brake = input.isKeyPressed(' ') || input.isKeyPressed('Space');
+
+      camManager.updateFreeFlight(delta, fk, input.deltaX, input.deltaY);
+      input.resetDeltas();
+    } else {
       input.resetDeltas();
     }
-  });
+  }, -1);
 
   return null;
 };

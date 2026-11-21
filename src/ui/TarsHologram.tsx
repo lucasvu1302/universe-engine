@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Mic, MicOff, Bot, Sliders, X, Sparkles } from 'lucide-react';
 import { AstroCopilot } from '@/engine/ai/AstroCopilot';
 import { AudioManager } from '@/engine/audio/AudioManager';
+import { useAppStore } from '@/stores/useAppStore';
 import { useTranslation } from '@/i18n';
 
 interface TarsHologramProps {
@@ -11,6 +12,7 @@ interface TarsHologramProps {
 
 export const TarsHologram: React.FC<TarsHologramProps> = ({ isOpen, onClose }) => {
   const { t, language } = useTranslation();
+  const isDevOverlayOpen = useAppStore((state) => state.isDevOverlayOpen);
   const [isListening, setIsListening] = useState(false);
   const [lastSpeech, setLastSpeech] = useState(
     language === 'vi' ? 'Trực ban TARS sẵn sàng. Chỉ huy có mệnh lệnh gì?' : 'Standing by for flight orders, Commander.'
@@ -48,7 +50,12 @@ export const TarsHologram: React.FC<TarsHologramProps> = ({ isOpen, onClose }) =
   };
 
   return (
-    <div className="fixed bottom-20 right-6 z-40 w-84 glass-panel-glow rounded-3xl p-4 text-white shadow-2xl border border-sky-500/40 animate-in fade-in zoom-in-95 duration-200 select-none font-mono">
+    <div
+      onWheel={(e) => e.stopPropagation()}
+      className={`fixed ${
+        isDevOverlayOpen ? 'top-[16.75rem]' : 'top-[6.75rem] sm:top-16'
+      } left-3 sm:left-4 z-[44] w-[min(20.5rem,calc(100vw-1.5rem))] max-h-[calc(100dvh-7.5rem)] overflow-y-auto overscroll-contain touch-pan-y vip-scrollbar glass-panel-glow rounded-3xl p-4 text-white shadow-2xl border border-sky-500/40 animate-in fade-in zoom-in-95 duration-200 select-none font-mono`}
+    >
       {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b border-white/10">
         <div className="flex items-center space-x-2">
@@ -62,8 +69,11 @@ export const TarsHologram: React.FC<TarsHologramProps> = ({ isOpen, onClose }) =
         </div>
 
         <button
+          type="button"
+          aria-label={t('common.close')}
           onClick={onClose}
           className="p-1 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-all cursor-pointer"
+          title={t('common.close')}
         >
           <X className="w-4 h-4" />
         </button>

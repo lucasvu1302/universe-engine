@@ -96,12 +96,21 @@ export class LaunchController {
     const stage1Separated = timeSeconds >= 100;
     const fairingJettisoned = timeSeconds >= 140;
 
-    // 4. Calculate 3D Scene Coordinates
-    // Y represents Altitude; Z represents Downrange distance
-    // In visual coordinates, scale altitude smoothly so camera can see Earth & space comfortably
-    const visualAlt = altKm * 1.5;
-    // Downrange distance accumulates as rocket pitches forward
-    const downrange = Math.max(0, (timeSeconds - 15) * velKms * 0.8);
+    // 4. Calculate C2-smooth 3D Scene Coordinates (zero piecewise altitude/downrange velocity kinks)
+    let visualAlt = 0;
+    if (timeSeconds > 10) {
+      const tLift = timeSeconds - 10;
+      const liftoffEase = (tLift * tLift) / (tLift + 8.0);
+      visualAlt = liftoffEase * (8.2 / (1.0 + tLift / 290.0));
+    }
+
+    // Smooth C2 downrange curve building seamlessly after pitch-over at T+15s
+    let downrange = 0;
+    if (timeSeconds > 15) {
+      const dt = timeSeconds - 15;
+      const turnEase = (dt * dt) / (dt + 12.0);
+      downrange = turnEase * (0.68 + 0.015 * dt);
+    }
 
     this.rocketPos.set(0, visualAlt, downrange);
 
@@ -114,10 +123,13 @@ export class LaunchController {
     // 5. Update Atmosphere
     this.atmosphereController.update(altKm, velKms);
 
-    // 6. Camera Shake
-    const shake = THREE.MathUtils.lerp(step.cameraShake, 0, stepT * 0.5);
-    if (shake > 0.05) {
-      this.cameraDirector.triggerShake(shake * 0.4, 0.1);
+    // 6. Subtle external acoustic rumble only at Liftoff (T+10..17s) & peak Max-Q (T+67..74s)
+    if (timeSeconds >= 10 && timeSeconds <= 17) {
+      const liftEnvelope = Math.sin(((timeSeconds - 10) / 7) * Math.PI);
+      this.cameraDirector.triggerShake(liftEnvelope * 0.12, 0.12);
+    } else if (timeSeconds >= 67 && timeSeconds <= 74) {
+      const maxQEnvelope = Math.sin(((timeSeconds - 67) / 7) * Math.PI);
+      this.cameraDirector.triggerShake(maxQEnvelope * 0.08, 0.12);
     }
     this.cameraDirector.updateRocketPose(this.rocketPos, this.rocketQuat);
 

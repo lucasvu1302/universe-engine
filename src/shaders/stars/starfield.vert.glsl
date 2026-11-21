@@ -27,7 +27,7 @@ void main() {
   vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
   gl_Position = projectionMatrix * mvPosition;
 
-  // Attenuate point size by distance
+  // Attenuate point size by distance (guard near-zero z)
   float pSize = aSize * (1.0 + uWarpSpeed * 0.5);
-  gl_PointSize = clamp(pSize * (350.0 / -mvPosition.z), 1.0, 45.0);
+  gl_PointSize = clamp(pSize * (350.0 / max(-mvPosition.z, 0.1)), 1.0, 45.0);
 }

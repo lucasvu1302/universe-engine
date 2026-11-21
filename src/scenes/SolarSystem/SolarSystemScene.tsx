@@ -15,6 +15,9 @@ import { Voyager } from '@/entities/Spacecraft/Voyager';
 import { MeteorImpact } from '@/entities/Impacts/MeteorImpact';
 import { TidalDisruption } from '@/entities/Impacts/TidalDisruption';
 import { Supernova } from '@/entities/Impacts/Supernova';
+import { CelestialOverlay } from '@/entities/Constellations/CelestialOverlay';
+import { SolarStormAurora } from '@/entities/Phenomena/SolarStormAurora';
+import { HohmannMissionOverlay } from '@/entities/Missions/HohmannMissionOverlay';
 import { CELESTIAL_BODIES, PLANET_KEYS } from '@/data/celestialData';
 import { useAppStore } from '@/stores/useAppStore';
 import { CameraManager } from '@/engine/camera/CameraManager';
@@ -37,17 +40,22 @@ export const SolarSystemScene: React.FC<SolarSystemSceneProps> = ({
   const setActiveTidal = useAppStore((state) => state.setActiveTidal);
   const activeSupernova = useAppStore((state) => state.activeSupernova);
   const setActiveSupernova = useAppStore((state) => state.setActiveSupernova);
+  const solarStormActive = useAppStore((state) => state.solarStormActive);
+  const missionPlannerOpen = useAppStore((state) => state.missionPlannerOpen);
 
   const earthPosRef = useRef(new THREE.Vector3());
 
   useFrame(() => {
     CameraManager.getInstance().getLiveBodyPosition('earth', earthPosRef.current);
-  });
+  }, -1);
 
   return (
     <group>
       {/* 360° Volumetric Starfield with Distant Galaxies and Nebulae */}
       <StarField />
+
+      {/* 3D Constellation Sky-Map & Goldilocks Habitable Zone Overlay */}
+      <CelestialOverlay />
 
       {/* Centerpiece Sun */}
       <Sun onSelect={() => onSelectPlanet('sun')} />
@@ -59,11 +67,12 @@ export const SolarSystemScene: React.FC<SolarSystemSceneProps> = ({
 
         return (
           <React.Fragment key={key}>
-            {/* Orbit Path Line matching exact Keplerian parameters */}
+            {/* Orbit Path Line matching exact Keplerian parameters (auto-hidden on non-Sun close focus for clean cinema portraits) */}
             <OrbitLine
               distance={body.visualDistance}
               color={body.color}
               isSelected={isSelected}
+              dimmed={Boolean(selectedTarget && selectedTarget !== 'sun')}
               eccentricity={body.type === 'rocky' ? 0.04 : 0.01}
               inclinationDeg={body.orbitalInclinationDeg ?? 0.0}
             />
@@ -133,6 +142,12 @@ export const SolarSystemScene: React.FC<SolarSystemSceneProps> = ({
         position={[-220, 90, -180]}
         onComplete={() => setActiveSupernova(false)}
       />
+
+      {/* Live 3D Solar Storm, Dipole Magnetosphere & Polar Aurora System */}
+      {solarStormActive && <SolarStormAurora earthPosRef={earthPosRef} />}
+
+      {/* Live 3D Hohmann Transfer Orbit & Autonomous Probe Launcher */}
+      {missionPlannerOpen && <HohmannMissionOverlay earthPosRef={earthPosRef} />}
     </group>
   );
 };

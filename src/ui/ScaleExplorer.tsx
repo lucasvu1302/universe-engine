@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { ArrowRight, ArrowLeft, X, Maximize2 } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { CameraManager } from '@/engine/camera/CameraManager';
@@ -84,6 +84,8 @@ export const ScaleExplorer: React.FC = () => {
   const setStepIndex = useAppStore((state) => state.setScaleStep);
   const setCameraMode = useAppStore((state) => state.setCameraMode);
 
+  const dialogRef = useRef<HTMLDivElement>(null);
+
   if (!isScaleOpen) return null;
 
   const current = SCALE_STEPS[stepIndex];
@@ -104,14 +106,43 @@ export const ScaleExplorer: React.FC = () => {
     }
   };
 
+  const handleKeyDownTrap = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Tab' || !dialogRef.current) return;
+    const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md pointer-events-auto">
-      <div className="glass-panel-glow w-full max-w-xl p-6 rounded-3xl border border-sky-500/40 space-y-5">
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="scale-explorer-title"
+      onKeyDown={handleKeyDownTrap}
+      onClick={() => setIsScaleOpen(false)}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md pointer-events-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
+        className="glass-panel-glow w-full max-w-xl max-h-[90dvh] overflow-y-auto overscroll-contain touch-pan-y vip-scrollbar p-5 sm:p-6 rounded-3xl border border-sky-500/40 space-y-5"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 pb-3">
           <div className="flex items-center space-x-2 text-sky-400">
             <Maximize2 className="w-5 h-5" />
-            <span className="text-xs font-mono font-bold tracking-widest uppercase">
+            <span id="scale-explorer-title" className="text-xs font-mono font-bold tracking-widest uppercase">
               {language === 'vi'
                 ? `THƯỚC ĐO QUY MÔ VŨ TRỤ (BƯỚC ${current.level}/${SCALE_STEPS.length})`
                 : `COSMIC SCALE EXPLORATION (STEP ${current.level} OF ${SCALE_STEPS.length})`}
@@ -119,11 +150,14 @@ export const ScaleExplorer: React.FC = () => {
           </div>
 
           <button
+            type="button"
+            aria-label={language === 'vi' ? 'Đóng thước đo quy mô' : 'Close Scale Explorer'}
+            title={language === 'vi' ? 'Đóng' : 'Close'}
             onClick={() => {
               AudioManager.getInstance().playUIClick();
               setIsScaleOpen(false);
             }}
-            className="p-1.5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+            className="p-1.5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-all cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -143,8 +177,10 @@ export const ScaleExplorer: React.FC = () => {
           {SCALE_STEPS.map((s, idx) => (
             <button
               key={s.level}
+              type="button"
+              aria-label={language === 'vi' ? `Bước ${s.level}: ${s.titleVi}` : `Step ${s.level}: ${s.titleEn}`}
               onClick={() => handleStep(idx)}
-              className={`h-2 rounded-full transition-all ${
+              className={`h-2 rounded-full transition-all cursor-pointer ${
                 idx === stepIndex
                   ? 'w-8 bg-sky-400 shadow-md shadow-sky-400/50'
                   : 'w-2 bg-white/20 hover:bg-white/40'

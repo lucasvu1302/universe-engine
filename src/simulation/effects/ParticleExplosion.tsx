@@ -1,6 +1,8 @@
 import React, { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import partVert from "@/shaders/cosmic/cosmicParticle.vert.glsl";
+import partFrag from "@/shaders/cosmic/cosmicParticle.frag.glsl";
 
 interface ParticleExplosionProps {
   progress: number; // 0 to 1
@@ -8,33 +10,37 @@ interface ParticleExplosionProps {
   primaryColor?: string;
   secondaryColor?: string;
   maxSpread?: number;
+  size?: number;
 }
 
 export const ParticleExplosion: React.FC<ParticleExplosionProps> = ({
   progress,
-  count = 1200,
+  count = 1600,
   primaryColor = "#ffaa00",
   secondaryColor = "#ff2200",
-  maxSpread = 70
+  maxSpread = 85,
+  size = 2.4
 }) => {
   const pointsRef = useRef<THREE.Points>(null);
-  const matRef = useRef<THREE.PointsMaterial>(null);
+  const matRef = useRef<THREE.ShaderMaterial>(null);
 
-  // Generate initial velocity directions and colors
-  const { velocities, basePositions, colors } = useMemo(() => {
+  // Generate initial velocity directions, scales, and colors
+  const { velocities, basePositions, colors, scales } = useMemo(() => {
     const vels = new Float32Array(count * 3);
     const pos = new Float32Array(count * 3);
     const cols = new Float32Array(count * 3);
+    const scls = new Float32Array(count);
 
     const c1 = new THREE.Color(primaryColor);
     const c2 = new THREE.Color(secondaryColor);
     const tempCol = new THREE.Color();
 
     for (let i = 0; i < count; i++) {
-      // Uniform sphere distribution
+      // Uniform spherical direction with velocity dispersion
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(Math.random() * 2 - 1);
-      const speed = 0.3 + Math.random() * 0.7;
+      // Realistic blast speed distribution (most debris at mid-speed, some high-velocity ejecta)
+      const speed = 0.25 + Math.pow(Math.random(), 0.8) * 0.85;
 
       const vx = Math.sin(phi) * Math.cos(theta) * speed;
       const vy = Math.sin(phi) * Math.sin(theta) * speed;
@@ -53,23 +59,35 @@ export const ParticleExplosion: React.FC<ParticleExplosionProps> = ({
       cols[i * 3] = tempCol.r;
       cols[i * 3 + 1] = tempCol.g;
       cols[i * 3 + 2] = tempCol.b;
+
+      scls[i] = 0.6 + Math.random() * 1.6;
     }
 
-    return { velocities: vels, basePositions: pos, colors: cols };
+    return { velocities: vels, basePositions: pos, colors: cols, scales: scls };
   }, [count, primaryColor, secondaryColor]);
 
   // Current dynamic positions buffer
   const currentPositions = useMemo(() => new Float32Array(basePositions), [basePositions]);
 
   const clamped = Math.min(Math.max(progress, 0), 1);
-  const opacity = Math.pow(1.0 - clamped, 1.5);
+  const opacity = Math.pow(1.0 - clamped, 1.4);
 
-  useFrame(() => {
+  const uniforms = useMemo(
+    () => ({
+      uSize: { value: size },
+      uScale: { value: 1.0 },
+      uOpacity: { value: opacity },
+      uTime: { value: 0.0 }
+    }),
+    [size]
+  );
+
+  useFrame((_, delta) => {
     if (!pointsRef.current) return;
     const geom = pointsRef.current.geometry;
     const posAttr = geom.attributes.position as THREE.BufferAttribute;
 
-    const expansion = Math.max(1.0, clamped * maxSpread);
+    const expansion = Math.max(0.1, clamped * maxSpread);
     for (let i = 0; i < count; i++) {
       currentPositions[i * 3] = velocities[i * 3] * expansion;
       currentPositions[i * 3 + 1] = velocities[i * 3 + 1] * expansion;
@@ -79,11 +97,12 @@ export const ParticleExplosion: React.FC<ParticleExplosionProps> = ({
     posAttr.needsUpdate = true;
 
     if (matRef.current) {
-      matRef.current.opacity = opacity;
+      matRef.current.uniforms.uOpacity.value = opacity;
+      matRef.current.uniforms.uTime.value += delta;
     }
   });
 
-  if (clamped < 0 || clamped >= 1) return null;
+  if (clamped < 0.001 || clamped >= 0.999) return null;
 
   return (
     <points ref={pointsRef}>
@@ -93,16 +112,20 @@ export const ParticleExplosion: React.FC<ParticleExplosionProps> = ({
           args={[currentPositions, 3]}
         />
         <bufferAttribute
-          attach="attributes-color"
+          attach="attributes-aColor"
           args={[colors, 3]}
         />
+        <bufferAttribute
+          attach="attributes-aScale"
+          args={[scales, 1]}
+        />
       </bufferGeometry>
-      <pointsMaterial
+      <shaderMaterial
         ref={matRef}
-        size={1.8}
-        vertexColors
+        vertexShader={partVert}
+        fragmentShader={partFrag}
+        uniforms={uniforms}
         transparent
-        opacity={opacity}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
       />

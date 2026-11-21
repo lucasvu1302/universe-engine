@@ -15,6 +15,7 @@ export class SimulationClock {
   public timeScale: number = 1.0;
   public isPaused: boolean = false;
   public lastFrameTimestamp: number = 0;
+  private smoothedDelta: number = 1 / 60;
 
   private constructor() {
     this.lastFrameTimestamp = performance.now();
@@ -48,6 +49,23 @@ export class SimulationClock {
     }
 
     return clampedDelta;
+  }
+
+  /**
+   * VSync-aligned frame delta stepper with EMA micro-jitter smoothing for butter-smooth 60Hz/120Hz orbital motion.
+   */
+  public advanceByDelta(rawDeltaSeconds: number): number {
+    if (!Number.isFinite(rawDeltaSeconds) || rawDeltaSeconds <= 0) {
+      return 0;
+    }
+    const clamped = Math.min(rawDeltaSeconds, 0.05);
+    this.smoothedDelta += (clamped - this.smoothedDelta) * 0.28;
+
+    if (!this.isPaused) {
+      this.simulationTime += this.smoothedDelta * this.timeScale;
+    }
+
+    return this.smoothedDelta;
   }
 
   public setTimeScale(scale: number): void {

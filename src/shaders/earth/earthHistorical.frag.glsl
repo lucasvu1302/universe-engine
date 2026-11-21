@@ -68,104 +68,87 @@ float fbm(vec3 p) {
   return f;
 }
 
+// Epoch 0: Hadean magma world (also outputs lavaCrack for self-illumination)
+vec3 evalHadean(vec3 sphereCoord, out float lavaCrackOut) {
+  float magmaNoise = snoise(sphereCoord * 12.0 + uTime * 0.05);
+  lavaCrackOut = smoothstep(0.1, 0.28, abs(magmaNoise));
+  vec3 basalt = vec3(0.06, 0.05, 0.07);
+  vec3 glowingLava = mix(vec3(1.0, 0.2, 0.0), vec3(1.0, 0.85, 0.1), clamp(1.0 - lavaCrackOut, 0.0, 1.0));
+  return mix(glowingLava * 1.8, basalt, lavaCrackOut);
+}
+
+// Epoch 1: Archean & Proterozoic ocean + cratons
+vec3 evalArchean(vec3 sphereCoord) {
+  float archNoise = fbm(sphereCoord * 3.5);
+  return (archNoise > 0.18) ? vec3(0.38, 0.22, 0.14) : vec3(0.04, 0.28, 0.32);
+}
+
+// Epoch 2: Pangaea supercontinent
+vec3 evalPangaea(vec3 sphereCoord) {
+  float pangeaMask = fbm(sphereCoord * 2.8);
+  bool isPangeaLand = (pangeaMask > 0.05) && (sphereCoord.x > -0.45);
+  vec3 pangeaDesert = mix(vec3(0.65, 0.28, 0.12), vec3(0.18, 0.38, 0.15), clamp(abs(sphereCoord.y) * 1.5, 0.0, 1.0));
+  return isPangeaLand ? pangeaDesert : vec3(0.01, 0.18, 0.45);
+}
+
+// Epoch 3: Jurassic & Cretaceous tropical continents
+vec3 evalJurassic(vec3 sphereCoord) {
+  float jurassicNoise = fbm(sphereCoord * 4.2);
+  return (jurassicNoise > 0.08) ? vec3(0.05, 0.52, 0.18) : vec3(0.02, 0.32, 0.65);
+}
+
+// Epoch 4: Quaternary Ice Age (reuses modernLandNoise when blending 4 -> 5)
+vec3 evalIceAgeFromNoise(vec3 sphereCoord, float modernLandNoise) {
+  bool isLandBase = modernLandNoise > 0.12;
+  float latAbs = abs(sphereCoord.y);
+  bool isGlacialIce = latAbs > 0.45 || (latAbs > 0.35 && modernLandNoise > 0.05);
+  return isGlacialIce ? vec3(0.92, 0.96, 1.0) : (isLandBase ? vec3(0.28, 0.32, 0.24) : vec3(0.01, 0.15, 0.38));
+}
+
+// Epoch 5: Modern Anthropocene day color
+vec3 evalModernFromNoise(float modernLandNoise) {
+  bool isLandBase = modernLandNoise > 0.12;
+  vec3 modernLand = mix(vec3(0.68, 0.55, 0.35), vec3(0.08, 0.48, 0.18), smoothstep(0.12, 0.45, modernLandNoise));
+  return isLandBase ? modernLand : vec3(0.02, 0.24, 0.55);
+}
+
 void main() {
   vec3 norm = normalize(vNormal);
   vec3 sunDir = normalize(uSunPosition - vWorldPosition);
   float sunDot = dot(norm, sunDir);
   float dayFactor = smoothstep(-0.15, 0.25, sunDot);
-
-  // Normal spherical position for texture lookup
   vec3 sphereCoord = normalize(vWorldPosition);
 
-  // -----------------------------------------------------------------
-  // 1. EPOCH 0: HADEAN MAGMA HELL
-  // -----------------------------------------------------------------
-  float magmaNoise = snoise(sphereCoord * 12.0 + uTime * 0.05);
-  float lavaCrack = smoothstep(0.1, 0.28, abs(magmaNoise));
-  vec3 basalt = vec3(0.06, 0.05, 0.07);
-  vec3 glowingLava = mix(vec3(1.0, 0.2, 0.0), vec3(1.0, 0.85, 0.1), clamp(1.0 - lavaCrack, 0.0, 1.0));
-  vec3 colorHadean = mix(glowingLava * 1.8, basalt, lavaCrack);
-
-  // -----------------------------------------------------------------
-  // 2. EPOCH 1: ARCHEAN & PROTEROZOIC (Greenish-cyan ocean + iron cratons)
-  // -----------------------------------------------------------------
-  float archNoise = fbm(sphereCoord * 3.5);
-  bool isArchLand = archNoise > 0.18;
-  vec3 archOcean = vec3(0.04, 0.28, 0.32); // Greenish iron-rich water
-  vec3 archLand = vec3(0.38, 0.22, 0.14); // Barren red/brown craton
-  vec3 colorArchean = isArchLand ? archLand : archOcean;
-
-  // -----------------------------------------------------------------
-  // 3. EPOCH 2: PANGAEA (Single unified giant supercontinent)
-  // -----------------------------------------------------------------
-  // Giant landmass focused on one side of globe (X > -0.2)
-  float pangeaMask = fbm(sphereCoord * 2.8);
-  bool isPangeaLand = (pangeaMask > 0.05) && (sphereCoord.x > -0.45);
-  vec3 pangeaOcean = vec3(0.01, 0.18, 0.45); // Giant Panthalassa
-  vec3 pangeaDesert = mix(vec3(0.65, 0.28, 0.12), vec3(0.18, 0.38, 0.15), clamp(abs(sphereCoord.y) * 1.5, 0.0, 1.0));
-  vec3 colorPangaea = isPangeaLand ? pangeaDesert : pangeaOcean;
-
-  // -----------------------------------------------------------------
-  // 4. EPOCH 3: JURASSIC & CRETACEOUS (Tropical warm, fragmented continents)
-  // -----------------------------------------------------------------
-  float jurassicNoise = fbm(sphereCoord * 4.2);
-  bool isJurassicLand = jurassicNoise > 0.08;
-  vec3 jurassicOcean = vec3(0.02, 0.32, 0.65); // Warm turquoise shallow seas
-  vec3 jurassicJungle = vec3(0.05, 0.52, 0.18); // Deep tropical vegetation
-  vec3 colorJurassic = isJurassicLand ? jurassicJungle : jurassicOcean;
-
-  // -----------------------------------------------------------------
-  // 5. EPOCH 4: QUATERNARY ICE AGE (Massive white polar ice caps to 45 deg)
-  // -----------------------------------------------------------------
-  float modernLandNoise = fbm(sphereCoord * 5.0);
-  bool isLandBase = modernLandNoise > 0.12;
-  // Ice sheets down to latitude 40 degrees
-  float latAbs = abs(sphereCoord.y);
-  bool isGlacialIce = latAbs > 0.45 || (latAbs > 0.35 && modernLandNoise > 0.05);
-  vec3 iceColor = vec3(0.92, 0.96, 1.0);
-  vec3 tundraColor = vec3(0.28, 0.32, 0.24);
-  vec3 iceAgeOcean = vec3(0.01, 0.15, 0.38);
-  vec3 colorIceAge = isGlacialIce ? iceColor : (isLandBase ? tundraColor : iceAgeOcean);
-
-  // -----------------------------------------------------------------
-  // 6. EPOCH 5: MODERN ANTHROPOCENE (Familiar continents & night city lights)
-  // -----------------------------------------------------------------
-  vec3 modernOcean = vec3(0.02, 0.24, 0.55);
-  vec3 modernForest = vec3(0.08, 0.48, 0.18);
-  vec3 modernDesert = vec3(0.68, 0.55, 0.35);
-  vec3 modernLand = mix(modernDesert, modernForest, smoothstep(0.12, 0.45, modernLandNoise));
-  vec3 colorModernDay = isLandBase ? modernLand : modernOcean;
-
-  // Night lights on modern land
-  float nightFactor = 1.0 - dayFactor;
-  float cityNoise = snoise(sphereCoord * 35.0);
-  vec3 cityLights = vec3(1.0, 0.85, 0.4) * step(0.65, cityNoise) * (isLandBase ? 1.0 : 0.0) * nightFactor * 2.5;
-
-  // -----------------------------------------------------------------
-  // CONTINUOUS SHADER BLENDING ACROSS THE 6 EPOCHS
-  // -----------------------------------------------------------------
+  // Lazy adjacent-epoch evaluation: at most 2 epoch procedural noise functions run per fragment
   float stage = clamp(uEpochStage, 0.0, 5.0);
-  vec3 surfaceColor = colorHadean;
+  vec3 surfaceColor;
+  float lavaCrack = 1.0;
+  vec3 cityLights = vec3(0.0);
 
   if (stage < 1.0) {
-    surfaceColor = mix(colorHadean, colorArchean, stage);
+    vec3 colorHadean = evalHadean(sphereCoord, lavaCrack);
+    surfaceColor = mix(colorHadean, evalArchean(sphereCoord), stage);
   } else if (stage < 2.0) {
-    surfaceColor = mix(colorArchean, colorPangaea, stage - 1.0);
+    surfaceColor = mix(evalArchean(sphereCoord), evalPangaea(sphereCoord), stage - 1.0);
   } else if (stage < 3.0) {
-    surfaceColor = mix(colorPangaea, colorJurassic, stage - 2.0);
+    surfaceColor = mix(evalPangaea(sphereCoord), evalJurassic(sphereCoord), stage - 2.0);
   } else if (stage < 4.0) {
-    surfaceColor = mix(colorJurassic, colorIceAge, stage - 3.0);
+    float modernLandNoise = fbm(sphereCoord * 5.0);
+    surfaceColor = mix(evalJurassic(sphereCoord), evalIceAgeFromNoise(sphereCoord, modernLandNoise), stage - 3.0);
   } else {
-    surfaceColor = mix(colorIceAge, colorModernDay, stage - 4.0);
+    float modernLandNoise = fbm(sphereCoord * 5.0);
+    bool isLandBase = modernLandNoise > 0.12;
+    surfaceColor = mix(evalIceAgeFromNoise(sphereCoord, modernLandNoise), evalModernFromNoise(modernLandNoise), stage - 4.0);
+    float nightFactor = 1.0 - dayFactor;
+    float cityNoise = snoise(sphereCoord * 35.0);
+    cityLights = vec3(1.0, 0.85, 0.4) * step(0.65, cityNoise) * (isLandBase ? 1.0 : 0.0) * nightFactor * 2.5;
   }
 
   // Sunlight lighting (Day vs Night)
-  // Note: Hadean magma self-illuminates regardless of day/night
   float selfIllum = (1.0 - clamp(stage, 0.0, 1.0)) * (1.0 - lavaCrack) * 0.8;
   vec3 litColor = surfaceColor * (dayFactor * 0.95 + 0.05 + selfIllum);
 
-  // Add modern night city lights if approaching modern stage
-  if (stage > 4.0) {
+  if (stage >= 4.0) {
     litColor += cityLights * (stage - 4.0);
   }
 

@@ -121,10 +121,10 @@ export class TimelineEngine {
   }
 
   /**
-   * Deterministic per-frame update with clamped delta time.
+   * Deterministic timeline advance by the given positive finite delta (real-time frame clamping lives in SimulationManager).
    */
   public update(deltaSeconds: number): void {
-    if (!this.isPlaying || deltaSeconds <= 0) return;
+    if (!this.isPlaying || !Number.isFinite(deltaSeconds) || deltaSeconds <= 0) return;
 
     const prevTime = this.currentTime;
     const advance = deltaSeconds * this.speed;

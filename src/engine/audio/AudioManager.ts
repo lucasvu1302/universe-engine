@@ -169,6 +169,119 @@ export class AudioManager {
     this.warpGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.8);
   }
 
+  /**
+   * Synthesizes a deep kinetic/laser planetary defense deflection pulse (100% offline, headless-safe).
+   */
+  public playDefenseImpact(): void {
+    if (!useAppStore.getState().soundEnabled || !this.ctx || !this.masterGain) return;
+    try {
+      this.ensureContextRunning();
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(160, now);
+      osc.frequency.exponentialRampToValueAtTime(34, now + 0.55);
+
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.28, now + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.62);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(now);
+      osc.stop(now + 0.65);
+    } catch {
+      // Safe no-op in headless/restricted audio contexts
+    }
+  }
+
+  /**
+   * Synthesizes an authentic GW150914-inspired LIGO gravitational wave chirp (42 Hz -> 260 Hz)
+   * with damped ringdown harmonic using native Web Audio API (100% offline).
+   */
+  public playLigoChirp(): void {
+    if (!useAppStore.getState().soundEnabled || !this.ctx || !this.masterGain) return;
+    try {
+      this.ensureContextRunning();
+      const now = this.ctx.currentTime;
+
+      const osc = this.ctx.createOscillator();
+      const harmonic = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const harmonicGain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      harmonic.type = 'triangle';
+
+      osc.frequency.setValueAtTime(42, now);
+      osc.frequency.exponentialRampToValueAtTime(95, now + 0.36);
+      osc.frequency.exponentialRampToValueAtTime(260, now + 0.62);
+      osc.frequency.exponentialRampToValueAtTime(165, now + 0.88);
+
+      harmonic.frequency.setValueAtTime(84, now);
+      harmonic.frequency.exponentialRampToValueAtTime(520, now + 0.62);
+      harmonic.frequency.exponentialRampToValueAtTime(320, now + 0.88);
+
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.exponentialRampToValueAtTime(0.42, now + 0.6);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.92);
+
+      harmonicGain.gain.setValueAtTime(0.0005, now);
+      harmonicGain.gain.exponentialRampToValueAtTime(0.14, now + 0.6);
+      harmonicGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.88);
+
+      osc.connect(gain);
+      harmonic.connect(harmonicGain);
+      gain.connect(this.masterGain);
+      harmonicGain.connect(this.masterGain);
+
+      osc.start(now);
+      harmonic.start(now);
+      osc.stop(now + 0.95);
+      harmonic.stop(now + 0.95);
+    } catch {
+      // Headless or suspended AudioContext safe no-op
+    }
+  }
+
+  /**
+   * Synthesizes a subtle geomagnetic CME plasma pulse when solar storm triggers.
+   */
+  public playSolarStormPulse(): void {
+    if (!useAppStore.getState().soundEnabled || !this.ctx || !this.masterGain) return;
+    try {
+      this.ensureContextRunning();
+      const now = this.ctx.currentTime;
+
+      const osc = this.ctx.createOscillator();
+      const filter = this.ctx.createBiquadFilter();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(110, now);
+      osc.frequency.exponentialRampToValueAtTime(64, now + 0.85);
+
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(920, now);
+      filter.frequency.exponentialRampToValueAtTime(220, now + 0.85);
+      filter.Q.setValueAtTime(2.5, now);
+
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.exponentialRampToValueAtTime(0.24, now + 0.14);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.masterGain);
+
+      osc.start(now);
+      osc.stop(now + 0.92);
+    } catch {
+      // Headless safe no-op
+    }
+  }
+
   public updateSoundState(enabled: boolean): void {
     if (enabled) {
       if (!this.isInitialized) {
