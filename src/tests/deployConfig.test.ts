@@ -79,17 +79,19 @@ describe('Docker, GHCR CI & VPS Deployment Configuration (SPEC-008 T1)', () => {
     expect(nginxConf).toMatch(/access_log\s+\/dev\/stdout/);
     expect(nginxConf).toMatch(/error_log\s+\/dev\/stderr/);
 
-    // Unprivileged listener & gzip
+    // Unprivileged listener, relative redirects (no internal :8080 leak) & gzip
     expect(nginxConf).toMatch(/listen\s+8080;/);
     expect(nginxConf).not.toMatch(/listen\s+80;/);
+    expect(nginxConf).toMatch(/absolute_redirect\s+off;/);
     expect(nginxConf).toMatch(/gzip\s+on;/);
     expect(nginxConf).toMatch(/application\/javascript/);
 
-    // Healthcheck, SPA fallback & cache headers
+    // Healthcheck, SPA fallback & cache headers (long-TTL public caches MUST omit `always` so 404/5xx are never cached)
     expect(nginxConf).toMatch(/location\s+=\s*\/healthz\s*\{[\s\S]*?return\s+200\s+"ok\\n";/);
     expect(nginxConf).toMatch(/try_files\s+\$uri\s+\$uri\/\s+\/index\.html;/);
-    expect(nginxConf).toMatch(/location\s+\^~\s+\/assets\/\s*\{[\s\S]*?immutable/);
-    expect(nginxConf).toMatch(/location\s+\^~\s+\/textures\/\s*\{[\s\S]*?max-age=2592000/);
+    expect(nginxConf).toMatch(/location\s+\^~\s+\/assets\/\s*\{[\s\S]*?add_header\s+Cache-Control\s+"public, max-age=31536000, immutable";/);
+    expect(nginxConf).not.toMatch(/Cache-Control\s+"public,[^"]*"\s+always;/);
+    expect(nginxConf).toMatch(/location\s+\^~\s+\/textures\/\s*\{[\s\S]*?add_header\s+Cache-Control\s+"public, max-age=2592000";/);
 
     // Security headers must be present at server level AND repeated in every location block that uses add_header
     const requiredSecurityHeaders = [
