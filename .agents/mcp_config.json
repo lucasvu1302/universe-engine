@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "codegraph": {
+      "command": "/Users/VanAnh/.local/bin/codegraph",
+      "args": [
+        "serve",
+        "--mcp",
+        "--path",
+        "/Users/VanAnh/WorkSpace/Personal/universe-engine"
+      ]
+    }
+  }
+}

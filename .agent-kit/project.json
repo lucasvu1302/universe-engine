@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "project": {
+    "id": "universe-engine",
+    "name": "universe-engine",
+    "title": "universe-engine: Real-time interactive 3D Universe Exploration Engine (React Three Fiber, Vite)",
+    "layout": "single",
+    "family": "personal",
+    "identity": "AGENTS.md",
+    "locale": "vi"
+  },
+  "commands": {
+    "test": "pnpm test",
+    "lint": "pnpm lint",
+    "typecheck": "pnpm typecheck",
+    "build": "pnpm build",
+    "e2e": "pnpm test:e2e",
+    "dev": "pnpm dev",
+    "ci": "agk check . && agk run decision-log check && pnpm typecheck && pnpm lint && pnpm test && pnpm build"
+  },
+  "decisions": {
+    "enabled": true,
+    "rootCode": "UNIV",
+    "dir": "decisions"
+  },
+  "search": {
+    "exclude": [
+      ".git",
+      "node_modules",
+      "dist",
+      "dist-ssr",
+      "coverage",
+      "test-results",
+      "playwright-report",
+      "blob-report",
+      ".pnpm-store",
+      ".vite",
+      ".tmp",
+      ".codegraph",
+      ".claude/worktrees"
+    ],
+    "codegraph": true
+  },
+  "git": {
+    "release": "main"
+  }
+}

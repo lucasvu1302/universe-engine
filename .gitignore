@@ -42,3 +42,10 @@ Thumbs.db
 !.vscode/extensions.json
 *.sublime-workspace
 *.sublime-project
+
+# Agent kit & local tooling (specs live in kit state)
+/docs/task-report/
+/.tmp/
+/.codegraph/
+.claude/settings.local.json
+.claude/worktrees/
