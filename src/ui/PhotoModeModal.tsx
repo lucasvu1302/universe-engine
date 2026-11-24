@@ -19,10 +19,12 @@ export const PhotoModeModal: React.FC = () => {
     if (!isPhotoMode) {
       setFov(50);
       setExposure(1.18);
-      const cam = CameraManager.getInstance().camera;
-      if (cam && cam.fov !== 50) {
-        cam.fov = 50;
-        cam.updateProjectionMatrix();
+      if (useAppStore.getState().activeSpaceGame === 'none') {
+        const cam = CameraManager.getInstance().camera;
+        if (cam && cam.fov !== 50) {
+          cam.fov = 50;
+          cam.updateProjectionMatrix();
+        }
       }
     }
   }, [isPhotoMode, setExposure]);

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ActiveCosmicLab, ActiveSurface, CameraMode, useAppStore } from '@/stores/useAppStore';
+import { ActiveCosmicLab, ActiveSpaceGame, ActiveSurface, CameraMode, useAppStore } from '@/stores/useAppStore';
 import { CELESTIAL_BODIES } from '@/data/celestialData';
 import { SimulationClock } from '@/engine/simulation/SimulationClock';
 import { AudioManager } from '@/engine/audio/AudioManager';
@@ -33,6 +33,8 @@ export class CameraManager {
   public targetDistance = 180;
   public spherical = new THREE.Spherical(180, Math.PI / 3.2, Math.PI / 4);
   public targetSpherical = new THREE.Spherical(180, Math.PI / 3.2, Math.PI / 4);
+  public angularVelTheta = 0;
+  public angularVelPhi = 0;
 
   // Free Flight physics & damped zero-roll look state
   public velocity = new THREE.Vector3();
@@ -302,6 +304,30 @@ export class CameraManager {
   }
 
   /**
+   * Yields camera ownership to an active 3D Space Game scene with clean horizon & energetic 56° FOV.
+   */
+  public setSpaceGameMode(game: ActiveSpaceGame): void {
+    if (game === 'none') {
+      if (this.camera) {
+        this.camera.up.set(0, 1, 0);
+      }
+      this.setFov(50);
+      return;
+    }
+
+    this.cancelActiveTransition();
+    this.exitGalaxyMode(true);
+    this.activeFocusId = null;
+    this.state = 'ORBIT';
+    this.velocity.set(0, 0, 0);
+    this.clearOrbitInertia();
+    if (this.camera) {
+      this.camera.up.set(0, 1, 0);
+    }
+    this.setFov(56);
+  }
+
+  /**
    * Switches camera to ground surface view for Mars, Moon, Europa, or Titan exploration.
    */
   public setSurfaceMode(surface: ActiveSurface): void {
@@ -565,6 +591,39 @@ export class CameraManager {
   }
 
   /**
+   * Sets touch-only angular momentum coasting velocity (rad/s).
+   */
+  public setOrbitInertia(velTheta: number, velPhi: number): void {
+    this.angularVelTheta = Number.isFinite(velTheta) ? Math.max(-10, Math.min(10, velTheta)) : 0;
+    this.angularVelPhi = Number.isFinite(velPhi) ? Math.max(-10, Math.min(10, velPhi)) : 0;
+  }
+
+  /**
+   * Immediately halts any touch orbit inertia coasting.
+   */
+  public clearOrbitInertia(): void {
+    this.angularVelTheta = 0;
+    this.angularVelPhi = 0;
+  }
+
+  /**
+   * Double-tap quick zoom for mobile touchscreens:
+   * zooms smoothly to 0.55x current distance, or pulls back to 2.2x adaptiveMinDistance when already close.
+   */
+  public triggerDoubleTapZoom(): void {
+    if (this.state !== 'ORBIT' && this.state !== 'GALAXY') return;
+    const minDistance = this.getAdaptiveMinDistance();
+    const maxDistance = this.getAdaptiveMaxDistance();
+
+    if (this.targetDistance <= minDistance * 1.25) {
+      this.targetDistance = Math.min(maxDistance, minDistance * 2.2);
+    } else {
+      this.targetDistance = Math.max(minDistance, this.targetDistance * 0.55);
+    }
+    this.targetSpherical.radius = this.targetDistance;
+  }
+
+  /**
    * Smooth Exponential Zoom / Dolly.
    */
   public zoomOrbit(deltaRaw: number): void {
@@ -674,6 +733,8 @@ export class CameraManager {
     this.prevHostAzimuth = null;
     this.prevSimTimeForOrbit = null;
     this.flightModeInitialized = false;
+    this.angularVelTheta = 0;
+    this.angularVelPhi = 0;
     AudioManager.getInstance().setWarpIntensity(0.0);
   }
 
@@ -1068,6 +1129,7 @@ export class CameraManager {
     store.setCompareMode(false);
     store.setActiveSurface('none');
     store.setActiveEventSurfaceId(null);
+    store.setActiveSpaceGame('none');
     store.setInExoSystem(false);
 
     this.activeFocusId = null;
@@ -1527,6 +1589,8 @@ export class CameraManager {
 
     this.flightModeInitialized = false;
     const storeState = useAppStore.getState();
+    // Yield camera ownership completely while any Space Game runs its dedicated action camera
+    if (storeState.activeSpaceGame !== 'none') return;
     const isSurface = storeState.activeSurface !== 'none';
     const isEventSurface = storeState.activeEventSurfaceId !== null;
     const isExo = storeState.inExoSystem;
@@ -1549,6 +1613,13 @@ export class CameraManager {
             this.relTgtScratch.setFromSpherical(this.targetSpherical).applyAxisAngle(this.issOrbitAxis, dAngle);
             this.spherical.setFromVector3(this.relCurScratch);
             this.targetSpherical.setFromVector3(this.relTgtScratch);
+            // Shortest-arc wrap only across setFromVector3 ±π branch cut (never on continuous user swipe)
+            while (this.targetSpherical.theta - this.spherical.theta > Math.PI) {
+              this.targetSpherical.theta -= Math.PI * 2;
+            }
+            while (this.targetSpherical.theta - this.spherical.theta < -Math.PI) {
+              this.targetSpherical.theta += Math.PI * 2;
+            }
           }
         }
         this.prevSimTimeForOrbit = simTime;
@@ -1591,6 +1662,12 @@ export class CameraManager {
                 .applyAxisAngle(this.hotspotSpinAxisScratch, dAngle);
               this.spherical.setFromVector3(this.relCurScratch);
               this.targetSpherical.setFromVector3(this.relTgtScratch);
+              while (this.targetSpherical.theta - this.spherical.theta > Math.PI) {
+                this.targetSpherical.theta -= Math.PI * 2;
+              }
+              while (this.targetSpherical.theta - this.spherical.theta < -Math.PI) {
+                this.targetSpherical.theta += Math.PI * 2;
+              }
             }
           }
         }
@@ -1604,21 +1681,30 @@ export class CameraManager {
       this.prevFocusIdForAzimuth = null;
     }
 
-    // Shortest-arc azimuth wrap across ±π branch cut so damping never whips 360° around the pole
-    while (this.targetSpherical.theta - this.spherical.theta > Math.PI) {
-      this.targetSpherical.theta -= Math.PI * 2;
-    }
-    while (this.targetSpherical.theta - this.spherical.theta < -Math.PI) {
-      this.targetSpherical.theta += Math.PI * 2;
+    const clampedDelta = Math.min(Math.max(delta, 0.001), 0.05);
+
+    // Zero-allocation touch-only momentum coasting with smooth exponential decay
+    if (Math.abs(this.angularVelTheta) > 1e-4 || Math.abs(this.angularVelPhi) > 1e-4) {
+      this.activeHotspotTrack = null;
+      this.targetSpherical.theta -= this.angularVelTheta * clampedDelta;
+      this.targetSpherical.phi = Math.max(
+        0.01,
+        Math.min(Math.PI - 0.01, this.targetSpherical.phi - this.angularVelPhi * clampedDelta)
+      );
+      const decay = Math.exp(-5.5 * clampedDelta);
+      this.angularVelTheta *= decay;
+      this.angularVelPhi *= decay;
+      if (Math.abs(this.angularVelTheta) <= 1e-4) this.angularVelTheta = 0;
+      if (Math.abs(this.angularVelPhi) <= 1e-4) this.angularVelPhi = 0;
     }
 
-    const clampedDelta = Math.min(Math.max(delta, 0.001), 0.05);
     this.stepGalaxyBlend(clampedDelta);
 
     const damp = 1 - Math.exp(-12 * clampedDelta);
     this.spherical.theta = THREE.MathUtils.lerp(this.spherical.theta, this.targetSpherical.theta, damp);
     this.spherical.phi = THREE.MathUtils.lerp(this.spherical.phi, this.targetSpherical.phi, damp);
     this.spherical.radius = THREE.MathUtils.lerp(this.spherical.radius, this.targetSpherical.radius, damp);
+    this.currentDistance = this.spherical.radius;
 
     this.camera.position.setFromSpherical(this.spherical).add(this.target);
 

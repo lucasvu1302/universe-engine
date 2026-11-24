@@ -210,13 +210,15 @@ export const TargetHUD: React.FC = () => {
   return (
     <div
       data-testid="target-hud-panel"
-      className="fixed bottom-2.5 inset-x-2.5 sm:inset-x-auto sm:bottom-4 sm:right-4 z-40 sm:w-[356px] pointer-events-auto"
+      onPointerDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      className="fixed bottom-2.5 inset-x-2.5 pb-[env(safe-area-inset-bottom)] sm:pb-0 sm:inset-x-auto sm:bottom-4 sm:right-4 z-40 sm:w-[356px] pointer-events-auto"
     >
       <div
         ref={scrollRef}
         data-testid="target-hud-scroll"
         onWheel={(e) => e.stopPropagation()}
-        className={`vip-card-sheen rounded-2xl border-t-2 max-h-[39dvh] sm:max-h-[calc(100dvh-5.25rem)] overflow-y-auto overscroll-contain touch-pan-y vip-scrollbar ${
+        className={`vip-card-sheen rounded-2xl border-t-2 max-h-[30dvh] sm:max-h-[calc(100dvh-5.25rem)] overflow-y-auto overscroll-contain touch-pan-y vip-scrollbar ${
           isBlackHole
             ? 'glass-panel border border-orange-500/40 shadow-orange-500/15 shadow-2xl'
             : isPulsar
@@ -313,6 +315,7 @@ export const TargetHUD: React.FC = () => {
 
               <button
                 type="button"
+                data-testid="target-hud-collapse-btn"
                 aria-label={
                   isCollapsed
                     ? language === 'vi'

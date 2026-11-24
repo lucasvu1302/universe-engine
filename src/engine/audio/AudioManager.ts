@@ -14,6 +14,7 @@ export class AudioManager {
   private warpFilter: BiquadFilterNode | null = null;
 
   private isInitialized = false;
+  private lastHitSfxMs = 0;
 
   private constructor() {
     // Lazy initialized on first user interaction
@@ -377,6 +378,182 @@ export class AudioManager {
       osc.stop(now + 0.62);
     } catch {
       // Headless or suspended AudioContext safe no-op
+    }
+  }
+
+  public playLaserShot(): void {
+    if (!useAppStore.getState().soundEnabled || !this.ctx || !this.masterGain) return;
+    try {
+      this.ensureContextRunning();
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(920, now);
+      osc.frequency.exponentialRampToValueAtTime(220, now + 0.11);
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.16, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(now);
+      osc.stop(now + 0.13);
+    } catch {
+      // Safe no-op
+    }
+  }
+
+  public playExplosion(): void {
+    if (!useAppStore.getState().soundEnabled || !this.ctx || !this.masterGain) return;
+    try {
+      this.ensureContextRunning();
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const filter = this.ctx.createBiquadFilter();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(145, now);
+      osc.frequency.exponentialRampToValueAtTime(28, now + 0.36);
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(480, now);
+      filter.frequency.exponentialRampToValueAtTime(80, now + 0.36);
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.28, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(now);
+      osc.stop(now + 0.4);
+    } catch {
+      // Safe no-op
+    }
+  }
+
+  public playLevelUp(): void {
+    if (!useAppStore.getState().soundEnabled || !this.ctx || !this.masterGain) return;
+    try {
+      this.ensureContextRunning();
+      const now = this.ctx.currentTime;
+      const notes = [523.25, 659.25, 783.99, 1046.5];
+      notes.forEach((freq, idx) => {
+        if (!this.ctx || !this.masterGain) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const t0 = now + idx * 0.065;
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, t0);
+        gain.gain.setValueAtTime(0.001, t0);
+        gain.gain.linearRampToValueAtTime(0.18, t0 + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start(t0);
+        osc.stop(t0 + 0.2);
+      });
+    } catch {
+      // Safe no-op
+    }
+  }
+
+  public playDashBoost(): void {
+    if (!useAppStore.getState().soundEnabled || !this.ctx || !this.masterGain) return;
+    try {
+      this.ensureContextRunning();
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const filter = this.ctx.createBiquadFilter();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(210, now);
+      osc.frequency.exponentialRampToValueAtTime(640, now + 0.16);
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(420, now);
+      filter.frequency.exponentialRampToValueAtTime(1400, now + 0.16);
+      filter.Q.setValueAtTime(2.0, now);
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.18, now + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(now);
+      osc.stop(now + 0.22);
+    } catch {
+      // Safe no-op
+    }
+  }
+
+  public playHitDamage(): void {
+    if (!useAppStore.getState().soundEnabled || !this.ctx || !this.masterGain) return;
+    const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (nowMs - this.lastHitSfxMs < 220) return;
+    this.lastHitSfxMs = nowMs;
+    try {
+      this.ensureContextRunning();
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(240, now);
+      osc.frequency.exponentialRampToValueAtTime(78, now + 0.15);
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.2, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.17);
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(now);
+      osc.stop(now + 0.18);
+    } catch {
+      // Safe no-op
+    }
+  }
+
+  public playCorePickup(): void {
+    if (!useAppStore.getState().soundEnabled || !this.ctx || !this.masterGain) return;
+    try {
+      this.ensureContextRunning();
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.exponentialRampToValueAtTime(1320, now + 0.14);
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.2, now + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(now);
+      osc.stop(now + 0.2);
+    } catch {
+      // Safe no-op
+    }
+  }
+
+  public playVictoryFanfare(): void {
+    if (!useAppStore.getState().soundEnabled || !this.ctx || !this.masterGain) return;
+    try {
+      this.ensureContextRunning();
+      const now = this.ctx.currentTime;
+      const chord = [523.25, 659.25, 783.99, 1046.5, 1318.5];
+      chord.forEach((freq, idx) => {
+        if (!this.ctx || !this.masterGain) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const t0 = now + idx * 0.09;
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t0);
+        gain.gain.setValueAtTime(0.001, t0);
+        gain.gain.linearRampToValueAtTime(0.22, t0 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.42);
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start(t0);
+        osc.stop(t0 + 0.45);
+      });
+    } catch {
+      // Safe no-op
     }
   }
 

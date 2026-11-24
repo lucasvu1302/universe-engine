@@ -40,6 +40,8 @@ export class SimulationManager {
         activeCosmicLab: "none",
         activeSurface: "none",
         activeEventSurfaceId: null,
+        activeSpaceGame: "none",
+        gameHubOpen: false,
         inExoSystem: false,
         compareMode: false,
         solarStormActive: false,

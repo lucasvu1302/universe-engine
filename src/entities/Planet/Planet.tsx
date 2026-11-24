@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CelestialBodyData, CELESTIAL_BODIES } from '@/data/celestialData';
 import { SimulationClock } from '@/engine/simulation/SimulationClock';
+import { CameraManager } from '@/engine/camera/CameraManager';
 import { AssetManager } from '@/engine/assets/AssetManager';
 import { PerformanceManager } from '@/engine/performance/PerformanceManager';
 import { useAppStore } from '@/stores/useAppStore';
@@ -424,12 +425,17 @@ export const Planet: React.FC<PlanetProps> = ({
               geometry={unitSphere}
               scale={data.visualRadius}
               onClick={(e) => {
+                if (e.delta > 6) return;
                 e.stopPropagation();
                 onSelect?.(data.id);
+                const cam = CameraManager.getInstance();
+                if (cam.activeFocusId === data.id && cam.state === 'ORBIT') return;
                 onFocus?.(data.id);
               }}
               onDoubleClick={(e) => {
                 e.stopPropagation();
+                const cam = CameraManager.getInstance();
+                if (cam.activeFocusId === data.id && cam.state === 'ORBIT') return;
                 onFocus?.(data.id);
               }}
               onPointerOver={(e) => {
@@ -456,12 +462,17 @@ export const Planet: React.FC<PlanetProps> = ({
               geometry={unitSphere}
               scale={data.visualRadius}
               onClick={(e) => {
+                if (e.delta > 6) return;
                 e.stopPropagation();
                 onSelect?.(data.id);
+                const cam = CameraManager.getInstance();
+                if (cam.activeFocusId === data.id && cam.state === 'ORBIT') return;
                 onFocus?.(data.id);
               }}
               onDoubleClick={(e) => {
                 e.stopPropagation();
+                const cam = CameraManager.getInstance();
+                if (cam.activeFocusId === data.id && cam.state === 'ORBIT') return;
                 onFocus?.(data.id);
               }}
               onPointerOver={(e) => {
@@ -488,12 +499,17 @@ export const Planet: React.FC<PlanetProps> = ({
               geometry={unitSphere}
               scale={data.visualRadius}
               onClick={(e) => {
+                if (e.delta > 6) return;
                 e.stopPropagation();
                 onSelect?.(data.id);
+                const cam = CameraManager.getInstance();
+                if (cam.activeFocusId === data.id && cam.state === 'ORBIT') return;
                 onFocus?.(data.id);
               }}
               onDoubleClick={(e) => {
                 e.stopPropagation();
+                const cam = CameraManager.getInstance();
+                if (cam.activeFocusId === data.id && cam.state === 'ORBIT') return;
                 onFocus?.(data.id);
               }}
               onPointerOver={(e) => {

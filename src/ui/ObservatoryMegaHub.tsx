@@ -10,6 +10,7 @@ import {
   Eye,
   Film,
   Flame,
+  Gamepad2,
   Globe2,
   Layers,
   Navigation,
@@ -76,6 +77,7 @@ export const ObservatoryMegaHub: React.FC<ObservatoryMegaHubProps> = ({
   const startTour = useAppStore((s) => s.startTour);
   const setScaleExplorer = useAppStore((s) => s.setScaleExplorer);
   const setPhotoMode = useAppStore((s) => s.setPhotoMode);
+  const setGameHubOpen = useAppStore((s) => s.setGameHubOpen);
 
   const audio = AudioManager.getInstance();
 
@@ -448,6 +450,23 @@ export const ObservatoryMegaHub: React.FC<ObservatoryMegaHubProps> = ({
         onSelect: () => launch('sandbox', () => setSandboxOpen(!isSandboxOpen)),
       },
       {
+        id: 'space_game_hub',
+        category: 'tools',
+        testId: 'nav-space-game-hub',
+        title: t('games.hubTitle'),
+        subtitle: t('games.hubSubtitle'),
+        keywords: 'tro choi game vu tru 3d survivor jetpack mech arena miner zero g rescue',
+        badge: isVi ? '5 GAME' : '5 GAMES',
+        accentClass: 'text-cyan-300',
+        iconBgClass: 'bg-cyan-500/20 text-cyan-300',
+        icon: <Gamepad2 className="w-4 h-4" />,
+        onSelect: () => {
+          audio.playUIClick();
+          onClose();
+          setGameHubOpen(true);
+        },
+      },
+      {
         id: 'tars',
         category: 'tools',
         title: isVi ? 'Trợ Lý AI TARS Copilot' : 'AI TARS Hologram Copilot',
@@ -474,6 +493,7 @@ export const ObservatoryMegaHub: React.FC<ObservatoryMegaHubProps> = ({
     setSandboxOpen,
     setScaleExplorer,
     setTarsOpen,
+    setGameHubOpen,
     startTour,
     t,
   ]);
@@ -513,10 +533,37 @@ export const ObservatoryMegaHub: React.FC<ObservatoryMegaHubProps> = ({
 
   const recentItems = useMemo(() => {
     const byId = new Map(items.map((i) => [i.id, i]));
+    const recentGameMeta: Record<string, { gameId: 'astro_survivor' | 'jetpack_odyssey' | 'mech_arena' | 'exo_miner' | 'zero_g_rescue'; titleKey: string }> = {
+      game_astro_survivor: { gameId: 'astro_survivor', titleKey: 'games.survivorTitle' },
+      game_jetpack_odyssey: { gameId: 'jetpack_odyssey', titleKey: 'games.odysseyTitle' },
+      game_mech_arena: { gameId: 'mech_arena', titleKey: 'games.mechTitle' },
+      game_exo_miner: { gameId: 'exo_miner', titleKey: 'games.minerTitle' },
+      game_zero_g_rescue: { gameId: 'zero_g_rescue', titleKey: 'games.rescueTitle' },
+    };
     return recentExperiences
-      .map((id) => byId.get(id))
+      .map((id): HubCardItem | undefined => {
+        const direct = byId.get(id);
+        if (direct) return direct;
+        const gm = recentGameMeta[id];
+        if (!gm) return undefined;
+        return {
+          id,
+          category: 'tools',
+          title: t(gm.titleKey),
+          subtitle: t('games.navLabel'),
+          keywords: id,
+          accentClass: 'text-cyan-300',
+          iconBgClass: 'bg-cyan-500/20 text-cyan-300',
+          icon: <Gamepad2 className="w-4 h-4" />,
+          onSelect: () => {
+            audio.playUIClick();
+            onClose();
+            ModeOrchestrator.getInstance().enterSpaceGame(gm.gameId);
+          },
+        };
+      })
       .filter((x): x is HubCardItem => Boolean(x));
-  }, [items, recentExperiences]);
+  }, [items, recentExperiences, t, audio, onClose]);
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const swipeStartYRef = useRef<number | null>(null);

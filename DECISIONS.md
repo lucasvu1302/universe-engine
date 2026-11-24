@@ -10,6 +10,12 @@ Generated index of workspace-wide (`UNIV`) rules. Read it before changing code i
 | --- | --- | --- |
 | [ADR-UNIV-2026-11-23-001](decisions/ADR-UNIV-2026-11-23-001-standalone-repo-and-kit-governance.md) | `*` | Keep universe-engine as a standalone personal repository with agent-kit (`UNIV` ADRs, `CHANGELOG.md`, CodeGraph) committed at root; keep `docs/task-report/`, `.tmp/`, `.codegraph/` and `.claude/settings.local.json` gitignored and excluded from Docker builds. |
 
+## Proposed (not binding)
+
+| ID | Scope | Rule |
+| --- | --- | --- |
+| [ADR-UNIV-2026-11-24-001](decisions/ADR-UNIV-2026-11-24-001-unified-touch-gestures-and-space-game-hub.md) | `src/engine/camera/**`, `src/scenes/SpaceGames/**`, `src/ui/SpaceGames/**` | Route all canvas orbit/pinch gestures through `TouchOrbitGestureEngine` with touch-only zero-allocation inertia in `CameraManager`. Build every Space Game as a pure TypeScript engine plus a lazy-loaded R3F scene (`0` dynamic point/spot lights, `disposeObjectTree` cleanup, `<= 15 Hz` HUD sync). |
+
 ## Repository indexes
 
 _No child repositories found._

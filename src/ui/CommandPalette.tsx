@@ -28,7 +28,8 @@ import {
   Radio,
   Atom,
   Eye,
-  Satellite
+  Satellite,
+  Gamepad2
 } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { CELESTIAL_BODIES, ALL_CELESTIAL_KEYS, getLocalizedBodyData } from '@/data/celestialData';
@@ -302,6 +303,63 @@ export const CommandPalette: React.FC = () => {
         }
       },
       {
+        id: 'space-game-hub',
+        title: t('games.hubTitle'),
+        category: t('games.navLabel'),
+        icon: <Gamepad2 className="w-4 h-4 text-cyan-400" />,
+        action: () => {
+          if (useAppStore.getState().activeSpaceGame !== 'none') {
+            ModeOrchestrator.getInstance().exitSpaceGame();
+          }
+          useAppStore.getState().setGameHubOpen(true);
+        }
+      },
+      {
+        id: 'game-astro-survivor',
+        title: `${t('games.survivorTitle')} — ${language === 'vi' ? 'Trò Chơi 3D' : '3D Game'}`,
+        category: t('games.navLabel'),
+        icon: <Flame className="w-4 h-4 text-sky-400" />,
+        action: () => {
+          ModeOrchestrator.getInstance().enterSpaceGame('astro_survivor');
+        }
+      },
+      {
+        id: 'game-jetpack-odyssey',
+        title: `${t('games.odysseyTitle')} — ${language === 'vi' ? 'Trò Chơi 3D' : '3D Game'}`,
+        category: t('games.navLabel'),
+        icon: <Rocket className="w-4 h-4 text-amber-400" />,
+        action: () => {
+          ModeOrchestrator.getInstance().enterSpaceGame('jetpack_odyssey');
+        }
+      },
+      {
+        id: 'game-mech-arena',
+        title: `${t('games.mechTitle')} — ${language === 'vi' ? 'Trò Chơi 3D' : '3D Game'}`,
+        category: t('games.navLabel'),
+        icon: <ShieldAlert className="w-4 h-4 text-blue-400" />,
+        action: () => {
+          ModeOrchestrator.getInstance().enterSpaceGame('mech_arena');
+        }
+      },
+      {
+        id: 'game-exo-miner',
+        title: `${t('games.minerTitle')} — ${language === 'vi' ? 'Trò Chơi 3D' : '3D Game'}`,
+        category: t('games.navLabel'),
+        icon: <Compass className="w-4 h-4 text-emerald-400" />,
+        action: () => {
+          ModeOrchestrator.getInstance().enterSpaceGame('exo_miner');
+        }
+      },
+      {
+        id: 'game-zero-g-rescue',
+        title: `${t('games.rescueTitle')} — ${language === 'vi' ? 'Trò Chơi 3D' : '3D Game'}`,
+        category: t('games.navLabel'),
+        icon: <Satellite className="w-4 h-4 text-violet-400" />,
+        action: () => {
+          ModeOrchestrator.getInstance().enterSpaceGame('zero_g_rescue');
+        }
+      },
+      {
         id: 'wormhole',
         title: t('vip.quickWormhole'),
         category: t('commandPalette.catExperience'),
@@ -329,6 +387,9 @@ export const CommandPalette: React.FC = () => {
         category: t('commandPalette.catExperience'),
         icon: <Compass className="w-4 h-4 text-sky-400" />,
         action: () => {
+          if (useAppStore.getState().activeSpaceGame !== 'none') {
+            ModeOrchestrator.getInstance().exitSpaceGame();
+          }
           setScaleExplorer(true);
         }
       },
@@ -338,6 +399,9 @@ export const CommandPalette: React.FC = () => {
         category: t('commandPalette.catExperience'),
         icon: <Bomb className="w-4 h-4 text-rose-400" />,
         action: () => {
+          if (useAppStore.getState().activeSpaceGame !== 'none') {
+            ModeOrchestrator.getInstance().exitSpaceGame();
+          }
           setSandboxOpen(true);
         }
       },
@@ -347,6 +411,9 @@ export const CommandPalette: React.FC = () => {
         category: t('commandPalette.catExperience'),
         icon: <Bot className="w-4 h-4 text-sky-400" />,
         action: () => {
+          if (useAppStore.getState().activeSpaceGame !== 'none') {
+            ModeOrchestrator.getInstance().exitSpaceGame();
+          }
           setTarsOpen(true);
         }
       },
@@ -415,6 +482,9 @@ export const CommandPalette: React.FC = () => {
         category: t('commandPalette.catExperience'),
         icon: <Camera className="w-4 h-4 text-rose-400" />,
         action: () => {
+          if (useAppStore.getState().activeSpaceGame !== 'none') {
+            ModeOrchestrator.getInstance().exitSpaceGame();
+          }
           setPhotoMode(true);
         }
       },
@@ -491,7 +561,9 @@ export const CommandPalette: React.FC = () => {
         category: t('commandPalette.catAudio'),
         icon: <Volume2 className="w-4 h-4 text-indigo-400" />,
         action: () => {
+          const next = !useAppStore.getState().soundEnabled;
           toggleSound();
+          AudioManager.getInstance().updateSoundState(next);
         }
       },
       {
@@ -582,6 +654,11 @@ export const CommandPalette: React.FC = () => {
       photo_mode: 'photo',
       guided_tour: 'tour',
       cinema_imax: 'cinema-drift',
+      game_astro_survivor: 'game-astro-survivor',
+      game_jetpack_odyssey: 'game-jetpack-odyssey',
+      game_mech_arena: 'game-mech-arena',
+      game_exo_miner: 'game-exo-miner',
+      game_zero_g_rescue: 'game-zero-g-rescue',
     };
 
     const listById = new Map(list.map((c) => [c.id, c]));
@@ -672,7 +749,7 @@ export const CommandPalette: React.FC = () => {
       aria-label={t('commandPalette.placeholder')}
       onKeyDown={handleKeyDownTrap}
       onClick={() => setIsOpen(false)}
-      className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-[70] flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
     >
       <div
         onClick={(e) => e.stopPropagation()}

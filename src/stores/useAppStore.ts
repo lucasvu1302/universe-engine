@@ -31,6 +31,167 @@ export type TrappistViewMode = 'system' | 'surface_e';
 export type DysonMode = 'dyson_swarm' | 'oneill_cylinder';
 export type RelativityTab = 'dilation_lensing' | 'bh_dive';
 export type MegaHubCategory = 'all' | 'physics' | 'surfaces' | 'planets' | 'deep_space' | 'tools';
+export type ActiveSpaceGame =
+  | 'none'
+  | 'astro_survivor'
+  | 'jetpack_odyssey'
+  | 'mech_arena'
+  | 'exo_miner'
+  | 'zero_g_rescue';
+export type GameRank = 'S' | 'A' | 'B' | 'C';
+export type OdysseyWorldId = 'enceladus' | 'mars' | 'venus';
+export type MechPaintId = 'cobalt' | 'crimson' | 'gold' | 'obsidian';
+export type MechUpgradeKey = 'armor' | 'weapon' | 'booster';
+export type MinerUpgradeKey = 'o2' | 'laser' | 'jetpack' | 'turrets';
+
+export interface SpaceGamesProgress {
+  survivorBestScore: number;
+  survivorBestWave: number;
+  odysseyBestTime: Record<OdysseyWorldId, number | null>;
+  odysseyBestRank: Record<OdysseyWorldId, GameRank | null>;
+  mechCredits: number;
+  mechBestWave: number;
+  mechUpgrades: Record<MechUpgradeKey, number>;
+  mechPaint: MechPaintId;
+  minerCredits: number;
+  minerBestScore: number;
+  minerUpgrades: Record<MinerUpgradeKey, number>;
+  rescueBestScore: number;
+  rescueBestRank: GameRank | null;
+}
+
+export interface GameResultPayload {
+  score?: number;
+  wave?: number;
+  world?: OdysseyWorldId;
+  timeSec?: number;
+  rank?: GameRank;
+  creditsEarned?: number;
+}
+
+export const SPACE_GAMES_STORAGE_KEY = 'universe_space_games_v1';
+
+const RANK_ORDER: Record<GameRank, number> = { C: 1, B: 2, A: 3, S: 4 };
+const VALID_PAINTS = new Set<MechPaintId>(['cobalt', 'crimson', 'gold', 'obsidian']);
+const VALID_RANKS = new Set<GameRank>(['S', 'A', 'B', 'C']);
+
+export function createDefaultSpaceGamesProgress(): SpaceGamesProgress {
+  return {
+    survivorBestScore: 0,
+    survivorBestWave: 0,
+    odysseyBestTime: { enceladus: null, mars: null, venus: null },
+    odysseyBestRank: { enceladus: null, mars: null, venus: null },
+    mechCredits: 0,
+    mechBestWave: 0,
+    mechUpgrades: { armor: 1, weapon: 1, booster: 1 },
+    mechPaint: 'cobalt',
+    minerCredits: 0,
+    minerBestScore: 0,
+    minerUpgrades: { o2: 1, laser: 1, jetpack: 1, turrets: 0 },
+    rescueBestScore: 0,
+    rescueBestRank: null,
+  };
+}
+
+export function getMechUpgradeCost(currentLevel: number): number {
+  const costs = [0, 100, 180, 280, 420];
+  return costs[currentLevel] ?? 9999;
+}
+
+export function getMinerUpgradeCost(key: MinerUpgradeKey, currentLevel: number): number {
+  if (key === 'turrets') {
+    const turretCosts = [120, 220, 340];
+    return turretCosts[currentLevel] ?? 9999;
+  }
+  const suitCosts = [0, 80, 150, 240, 360];
+  return suitCosts[currentLevel] ?? 9999;
+}
+
+function safeNonNegInt(val: unknown, fallback = 0, max = 9999999): number {
+  if (typeof val !== 'number' || !Number.isFinite(val)) return fallback;
+  return Math.max(0, Math.min(max, Math.floor(val)));
+}
+
+function safeClampInt(val: unknown, min: number, max: number, fallback: number): number {
+  if (typeof val !== 'number' || !Number.isFinite(val)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(val)));
+}
+
+function safeNullableTime(val: unknown): number | null {
+  if (typeof val !== 'number' || !Number.isFinite(val) || val <= 0) return null;
+  return Math.round(val * 100) / 100;
+}
+
+function safeNullableRank(val: unknown): GameRank | null {
+  return typeof val === 'string' && VALID_RANKS.has(val as GameRank) ? (val as GameRank) : null;
+}
+
+function readSpaceGamesStorage(): SpaceGamesProgress {
+  const fallback = createDefaultSpaceGamesProgress();
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return fallback;
+  }
+  try {
+    const raw = localStorage.getItem(SPACE_GAMES_STORAGE_KEY);
+    if (!raw) return fallback;
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return fallback;
+    const rec = parsed as Record<string, unknown>;
+    const odTime = (rec.odysseyBestTime ?? {}) as Record<string, unknown>;
+    const odRank = (rec.odysseyBestRank ?? {}) as Record<string, unknown>;
+    const mechUp = (rec.mechUpgrades ?? {}) as Record<string, unknown>;
+    const minerUp = (rec.minerUpgrades ?? {}) as Record<string, unknown>;
+
+    return {
+      survivorBestScore: safeNonNegInt(rec.survivorBestScore, 0),
+      survivorBestWave: safeNonNegInt(rec.survivorBestWave, 0, 999),
+      odysseyBestTime: {
+        enceladus: safeNullableTime(odTime.enceladus),
+        mars: safeNullableTime(odTime.mars),
+        venus: safeNullableTime(odTime.venus),
+      },
+      odysseyBestRank: {
+        enceladus: safeNullableRank(odRank.enceladus),
+        mars: safeNullableRank(odRank.mars),
+        venus: safeNullableRank(odRank.venus),
+      },
+      mechCredits: safeNonNegInt(rec.mechCredits, 0),
+      mechBestWave: safeNonNegInt(rec.mechBestWave, 0, 999),
+      mechUpgrades: {
+        armor: safeClampInt(mechUp.armor, 1, 5, 1),
+        weapon: safeClampInt(mechUp.weapon, 1, 5, 1),
+        booster: safeClampInt(mechUp.booster, 1, 5, 1),
+      },
+      mechPaint:
+        typeof rec.mechPaint === 'string' && VALID_PAINTS.has(rec.mechPaint as MechPaintId)
+          ? (rec.mechPaint as MechPaintId)
+          : 'cobalt',
+      minerCredits: safeNonNegInt(rec.minerCredits, 0),
+      minerBestScore: safeNonNegInt(rec.minerBestScore, 0),
+      minerUpgrades: {
+        o2: safeClampInt(minerUp.o2, 1, 5, 1),
+        laser: safeClampInt(minerUp.laser, 1, 5, 1),
+        jetpack: safeClampInt(minerUp.jetpack, 1, 5, 1),
+        turrets: safeClampInt(minerUp.turrets, 0, 3, 0),
+      },
+      rescueBestScore: safeNonNegInt(rec.rescueBestScore, 0),
+      rescueBestRank: safeNullableRank(rec.rescueBestRank),
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function writeSpaceGamesStorage(progress: SpaceGamesProgress): void {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return;
+  }
+  try {
+    localStorage.setItem(SPACE_GAMES_STORAGE_KEY, JSON.stringify(progress));
+  } catch {
+    // Ignore storage quota errors
+  }
+}
 
 export interface PlanetaryEventBurst {
   eventId: string;
@@ -278,6 +439,11 @@ export interface AppState {
   selectedPlanetaryEventId: string | null;
   planetaryEventBurst: PlanetaryEventBurst | null;
 
+  // Space Game Hub (5 3D Character Space Games — SPEC-UNIV-2026-11-24-001)
+  activeSpaceGame: ActiveSpaceGame;
+  gameHubOpen: boolean;
+  gameProgress: SpaceGamesProgress;
+
   // Actions
   setCameraMode: (mode: CameraMode) => void;
   setTargetId: (id: string | null) => void;
@@ -402,6 +568,16 @@ export interface AppState {
   setPlanetaryEventIntensity: (intensity: number) => void;
   setSelectedPlanetaryEventId: (eventId: string | null) => void;
   triggerPlanetaryEventBurst: (eventId: string) => void;
+
+  // Space Game Hub Actions
+  setActiveSpaceGame: (game: ActiveSpaceGame) => void;
+  setGameHubOpen: (open: boolean) => void;
+  loadSpaceGamesProgress: () => SpaceGamesProgress;
+  recordGameResult: (game: Exclude<ActiveSpaceGame, 'none'>, payload: GameResultPayload) => void;
+  purchaseMechUpgrade: (key: MechUpgradeKey) => boolean;
+  purchaseMinerUpgrade: (key: MinerUpgradeKey) => boolean;
+  setMechPaint: (paint: MechPaintId) => void;
+  resetGameProgress: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -513,6 +689,9 @@ export const useAppStore = create<AppState>((set) => ({
   planetaryEventIntensity: 1.0,
   selectedPlanetaryEventId: null,
   planetaryEventBurst: null,
+  activeSpaceGame: 'none',
+  gameHubOpen: false,
+  gameProgress: readSpaceGamesStorage(),
 
   setCameraMode: (mode) => set({ cameraMode: mode }),
   setTargetId: (id) => set({ targetId: id }),
@@ -712,4 +891,132 @@ export const useAppStore = create<AppState>((set) => ({
         triggeredAt: typeof performance !== 'undefined' ? performance.now() : Date.now(),
       },
     })),
+
+  setActiveSpaceGame: (game) => set({ activeSpaceGame: game }),
+  setGameHubOpen: (open) => set({ gameHubOpen: open }),
+  loadSpaceGamesProgress: () => {
+    const loaded = readSpaceGamesStorage();
+    set({ gameProgress: loaded });
+    return loaded;
+  },
+  recordGameResult: (game, payload) =>
+    set((state) => {
+      const prev = state.gameProgress;
+      const next: SpaceGamesProgress = {
+        ...prev,
+        odysseyBestTime: { ...prev.odysseyBestTime },
+        odysseyBestRank: { ...prev.odysseyBestRank },
+        mechUpgrades: { ...prev.mechUpgrades },
+        minerUpgrades: { ...prev.minerUpgrades },
+      };
+
+      if (game === 'astro_survivor') {
+        if (typeof payload.score === 'number' && Number.isFinite(payload.score)) {
+          next.survivorBestScore = Math.max(prev.survivorBestScore, Math.floor(payload.score));
+        }
+        if (typeof payload.wave === 'number' && Number.isFinite(payload.wave)) {
+          next.survivorBestWave = Math.max(prev.survivorBestWave, Math.floor(payload.wave));
+        }
+      } else if (game === 'jetpack_odyssey' && payload.world) {
+        const w = payload.world;
+        if (typeof payload.timeSec === 'number' && Number.isFinite(payload.timeSec) && payload.timeSec > 0) {
+          const rounded = Math.round(payload.timeSec * 100) / 100;
+          const oldTime = prev.odysseyBestTime[w];
+          if (oldTime === null || rounded < oldTime) {
+            next.odysseyBestTime[w] = rounded;
+          }
+        }
+        if (payload.rank) {
+          const oldRank = prev.odysseyBestRank[w];
+          if (!oldRank || RANK_ORDER[payload.rank] > RANK_ORDER[oldRank]) {
+            next.odysseyBestRank[w] = payload.rank;
+          }
+        }
+      } else if (game === 'mech_arena') {
+        if (typeof payload.creditsEarned === 'number' && Number.isFinite(payload.creditsEarned) && payload.creditsEarned > 0) {
+          next.mechCredits = prev.mechCredits + Math.floor(payload.creditsEarned);
+        }
+        if (typeof payload.wave === 'number' && Number.isFinite(payload.wave)) {
+          next.mechBestWave = Math.max(prev.mechBestWave, Math.floor(payload.wave));
+        }
+      } else if (game === 'exo_miner') {
+        if (typeof payload.creditsEarned === 'number' && Number.isFinite(payload.creditsEarned) && payload.creditsEarned > 0) {
+          next.minerCredits = prev.minerCredits + Math.floor(payload.creditsEarned);
+        }
+        if (typeof payload.score === 'number' && Number.isFinite(payload.score)) {
+          next.minerBestScore = Math.max(prev.minerBestScore, Math.floor(payload.score));
+        }
+      } else if (game === 'zero_g_rescue') {
+        if (typeof payload.score === 'number' && Number.isFinite(payload.score)) {
+          next.rescueBestScore = Math.max(prev.rescueBestScore, Math.floor(payload.score));
+        }
+        if (payload.rank) {
+          const oldRank = prev.rescueBestRank;
+          if (!oldRank || RANK_ORDER[payload.rank] > RANK_ORDER[oldRank]) {
+            next.rescueBestRank = payload.rank;
+          }
+        }
+      }
+
+      writeSpaceGamesStorage(next);
+      return { gameProgress: next };
+    }),
+  purchaseMechUpgrade: (key) => {
+    let success = false;
+    set((state) => {
+      const curLv = state.gameProgress.mechUpgrades[key];
+      if (curLv >= 5) return state;
+      const cost = getMechUpgradeCost(curLv);
+      if (state.gameProgress.mechCredits < cost) return state;
+      success = true;
+      const next: SpaceGamesProgress = {
+        ...state.gameProgress,
+        mechCredits: state.gameProgress.mechCredits - cost,
+        mechUpgrades: {
+          ...state.gameProgress.mechUpgrades,
+          [key]: curLv + 1,
+        },
+      };
+      writeSpaceGamesStorage(next);
+      return { gameProgress: next };
+    });
+    return success;
+  },
+  purchaseMinerUpgrade: (key) => {
+    let success = false;
+    set((state) => {
+      const curLv = state.gameProgress.minerUpgrades[key];
+      const maxLv = key === 'turrets' ? 3 : 5;
+      if (curLv >= maxLv) return state;
+      const cost = getMinerUpgradeCost(key, curLv);
+      if (state.gameProgress.minerCredits < cost) return state;
+      success = true;
+      const next: SpaceGamesProgress = {
+        ...state.gameProgress,
+        minerCredits: state.gameProgress.minerCredits - cost,
+        minerUpgrades: {
+          ...state.gameProgress.minerUpgrades,
+          [key]: curLv + 1,
+        },
+      };
+      writeSpaceGamesStorage(next);
+      return { gameProgress: next };
+    });
+    return success;
+  },
+  setMechPaint: (paint) =>
+    set((state) => {
+      if (!VALID_PAINTS.has(paint)) return state;
+      const next: SpaceGamesProgress = {
+        ...state.gameProgress,
+        mechPaint: paint,
+      };
+      writeSpaceGamesStorage(next);
+      return { gameProgress: next };
+    }),
+  resetGameProgress: () => {
+    const fresh = createDefaultSpaceGamesProgress();
+    writeSpaceGamesStorage(fresh);
+    set({ gameProgress: fresh });
+  },
 }));

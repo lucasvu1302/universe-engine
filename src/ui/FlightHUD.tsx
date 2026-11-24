@@ -70,6 +70,7 @@ export const FlightHUD: React.FC = () => {
       if (
         s.isCommandPaletteOpen ||
         s.isSettingsOpen ||
+        s.gameHubOpen ||
         s.scaleExplorer ||
         s.isSandboxOpen ||
         s.isTarsOpen ||

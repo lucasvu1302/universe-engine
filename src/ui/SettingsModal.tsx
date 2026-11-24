@@ -54,7 +54,7 @@ export const SettingsModal: React.FC = () => {
       aria-labelledby="settings-modal-title"
       onKeyDown={handleKeyDownTrap}
       onClick={() => setSettingsOpen(false)}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md pointer-events-auto"
+      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md pointer-events-auto"
     >
       <div
         onClick={(e) => e.stopPropagation()}

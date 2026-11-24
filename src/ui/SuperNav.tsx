@@ -16,7 +16,8 @@ import {
   Sparkles,
   Bookmark,
   Trash2,
-  Star
+  Star,
+  Gamepad2
 } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import {
@@ -72,6 +73,8 @@ export const SuperNav: React.FC = () => {
   const inExoSystem = useAppStore((state) => state.inExoSystem);
   const isSandboxOpen = useAppStore((state) => state.isSandboxOpen);
   const isTarsOpen = useAppStore((state) => state.isTarsOpen);
+  const gameHubOpen = useAppStore((state) => state.gameHubOpen);
+  const setGameHubOpen = useAppStore((state) => state.setGameHubOpen);
 
   const { t, language, toggleLanguage } = useTranslation();
 
@@ -275,7 +278,7 @@ export const SuperNav: React.FC = () => {
         <button
           type="button"
           onClick={handleExploreClick}
-          className="flex items-center space-x-1 sm:space-x-1.5 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-full glass-panel vip-card-sheen hover:border-sky-500/50 border border-sky-500/30 transition-all cursor-pointer"
+          className="flex items-center justify-center sm:space-x-1.5 w-8 h-8 sm:w-auto sm:h-auto sm:px-2.5 sm:py-1.5 rounded-full glass-panel vip-card-sheen hover:border-sky-500/50 border border-sky-500/30 transition-all cursor-pointer"
           title={language === 'vi' ? 'Về toàn cảnh Hệ Mặt Trời' : 'Reset to Solar System Overview'}
         >
           <div className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
@@ -284,7 +287,7 @@ export const SuperNav: React.FC = () => {
           </span>
           <span
             data-camera-mode={cameraMode}
-            className="text-[9px] text-slate-300 px-1.5 py-0.5 rounded bg-white/10 hud-tag font-mono"
+            className="hidden sm:inline text-[9px] text-slate-300 px-1.5 py-0.5 rounded bg-white/10 hud-tag font-mono"
           >
             {language === 'vi'
               ? ({
@@ -347,13 +350,13 @@ export const SuperNav: React.FC = () => {
             dragStateRef.current.moved = false;
           }
         }}
-        className="pointer-events-auto flex items-center space-x-0.5 sm:space-x-1 px-1.5 sm:px-2 py-1 rounded-full glass-panel vip-card-sheen text-xs text-slate-200 shadow-2xl overflow-x-auto no-scrollbar touch-pan-x overscroll-x-contain min-w-0 max-w-full z-10 select-none"
+        className="pointer-events-auto flex items-center space-x-0.5 sm:space-x-1 px-1 sm:px-2 py-1 rounded-full glass-panel vip-card-sheen text-xs text-slate-200 shadow-2xl overflow-x-auto no-scrollbar touch-pan-x overscroll-x-contain min-w-0 max-w-full z-10 select-none"
       >
         {/* 1. Explore Solar System */}
         <button
           type="button"
           onClick={handleExploreClick}
-          className={`hidden sm:flex items-center space-x-1 px-2 xl:px-2.5 py-1 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+          className={`hidden sm:flex items-center space-x-1 px-2 py-1 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap ${
             cameraMode === 'ORBIT' && !compareMode && selectedTarget === 'sun'
               ? 'bg-sky-500 text-white font-semibold shadow-md shadow-sky-500/25'
               : 'hover:text-white hover:bg-white/10'
@@ -369,7 +372,7 @@ export const SuperNav: React.FC = () => {
           type="button"
           onClick={(e) => toggleMenuAnchored('planets', e.currentTarget, 268)}
           aria-expanded={openMenu === 'planets'}
-          className={`flex items-center space-x-1 px-2 xl:px-2.5 py-1 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+          className={`flex items-center space-x-1 px-1.5 sm:px-2 py-1 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap ${
             openMenu === 'planets' || isPlanetOrMoonSelected
               ? 'bg-white/20 text-white font-semibold'
               : 'hover:text-white hover:bg-white/10'
@@ -378,7 +381,7 @@ export const SuperNav: React.FC = () => {
         >
           <Globe2 className="w-3.5 h-3.5 text-sky-400" />
           <span className="font-medium hidden md:inline">{t('nav.planets')}</span>
-          <ChevronDown className="w-3 h-3 text-sky-300 opacity-70" />
+          <ChevronDown className="hidden sm:block w-3 h-3 text-sky-300 opacity-70" />
         </button>
 
         {/* 3. Interactive 3D Constellations & Reviews Trigger */}
@@ -387,7 +390,7 @@ export const SuperNav: React.FC = () => {
           data-testid="constellations-menu-btn"
           onClick={(e) => toggleMenuAnchored('constellations', e.currentTarget, 296)}
           aria-expanded={openMenu === 'constellations'}
-          className={`flex items-center space-x-1 px-2 xl:px-2.5 py-1 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+          className={`flex items-center space-x-1 px-1.5 sm:px-2 py-1 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap ${
             openMenu === 'constellations' || isConstellationSelected
               ? 'bg-amber-500/25 text-amber-200 font-semibold border border-amber-400/35'
               : 'hover:text-white hover:bg-white/10 text-amber-300'
@@ -396,14 +399,14 @@ export const SuperNav: React.FC = () => {
         >
           <Star className="w-3.5 h-3.5 text-amber-300" />
           <span className="font-medium hidden md:inline">{t('nav.constellations')}</span>
-          <ChevronDown className="w-3 h-3 text-amber-300 opacity-70" />
+          <ChevronDown className="hidden sm:block w-3 h-3 text-amber-300 opacity-70" />
         </button>
 
         {/* 4. Supermassive Black Hole Warp Button */}
         <button
           type="button"
           onClick={handleBlackHoleClick}
-          className={`hidden sm:flex items-center space-x-1 px-2 xl:px-2.5 py-1 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+          className={`hidden sm:flex items-center space-x-1 px-2 py-1 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap ${
             selectedTarget === 'blackhole'
               ? 'bg-orange-600 text-white font-semibold shadow-md shadow-orange-600/30'
               : 'hover:text-white hover:bg-white/10 text-orange-300'
@@ -418,7 +421,7 @@ export const SuperNav: React.FC = () => {
         <button
           type="button"
           onClick={handleGalaxyClick}
-          className={`flex items-center space-x-1 px-2 xl:px-2.5 py-1 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+          className={`flex items-center space-x-1 px-1.5 sm:px-2 py-1 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap ${
             cameraMode === 'GALAXY'
               ? 'bg-purple-600 text-white font-semibold shadow-md shadow-purple-600/30'
               : 'hover:text-white hover:bg-white/10'
@@ -438,7 +441,7 @@ export const SuperNav: React.FC = () => {
             ModeOrchestrator.getInstance().exitAllModes();
             SimulationManager.getInstance().startScenario('cosmic_history');
           }}
-          className="hidden sm:flex items-center space-x-1 px-2 xl:px-2.5 py-1 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap hover:text-white hover:bg-white/10 text-purple-300"
+          className="hidden sm:flex items-center space-x-1 px-2 py-1 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap hover:text-white hover:bg-white/10 text-purple-300"
           title={language === 'vi' ? 'Sự Kiện Vũ Trụ: Big Bang, Sao, Siêu Tân Tinh' : 'Cosmic History & Events'}
         >
           <Sparkles className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
@@ -451,7 +454,7 @@ export const SuperNav: React.FC = () => {
           data-testid="spacecraft-menu-btn"
           onClick={(e) => toggleMenuAnchored('spacecraft', e.currentTarget, 292)}
           aria-expanded={openMenu === 'spacecraft'}
-          className={`flex items-center space-x-1 px-2 xl:px-2.5 py-1 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+          className={`flex items-center space-x-1 px-1.5 sm:px-2 py-1 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap ${
             openMenu === 'spacecraft' ||
             cameraMode === 'FREE_FLIGHT' ||
             selectedTarget === 'iss' ||
@@ -465,7 +468,7 @@ export const SuperNav: React.FC = () => {
         >
           <Rocket className="w-3.5 h-3.5 text-emerald-300" />
           <span className="font-medium hidden md:inline">{t('nav.flight')}</span>
-          <ChevronDown className="w-3 h-3 text-emerald-300 opacity-70" />
+          <ChevronDown className="hidden sm:block w-3 h-3 text-emerald-300 opacity-70" />
         </button>
 
         {/* 8. Experiences & Advanced Features Trigger */}
@@ -473,7 +476,7 @@ export const SuperNav: React.FC = () => {
           type="button"
           onClick={(e) => toggleMenuAnchored('experience', e.currentTarget, 292)}
           aria-expanded={openMenu === 'experience'}
-          className={`flex items-center space-x-1 px-2 xl:px-2.5 py-1 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+          className={`flex items-center space-x-1 px-1.5 sm:px-2 py-1 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap ${
             openMenu === 'experience' ||
             inExoSystem ||
             isSandboxOpen ||
@@ -486,7 +489,28 @@ export const SuperNav: React.FC = () => {
         >
           <Sparkles className="w-3.5 h-3.5 text-amber-400" />
           <span className="font-medium hidden md:inline">{language === 'vi' ? 'Trải Nghiệm' : 'Experiences'}</span>
-          <ChevronDown className="w-3 h-3 text-slate-400 opacity-70" />
+          <ChevronDown className="hidden sm:block w-3 h-3 text-slate-400 opacity-70" />
+        </button>
+
+        {/* 9. 3D Space Game Hub Trigger */}
+        <button
+          type="button"
+          data-testid="space-games-nav-btn"
+          aria-label={t('games.hubTitle')}
+          onClick={() => {
+            audio.playUIClick();
+            setOpenMenu(null);
+            setGameHubOpen(true);
+          }}
+          className={`flex items-center space-x-1 px-1.5 sm:px-2 py-1 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+            gameHubOpen
+              ? 'bg-cyan-500/25 text-cyan-200 font-semibold border border-cyan-400/40'
+              : 'hover:text-white hover:bg-white/10 text-cyan-300'
+          }`}
+          title={t('games.hubTitle')}
+        >
+          <Gamepad2 className="w-3.5 h-3.5 text-cyan-400" />
+          <span className="font-medium hidden 2xl:inline">{t('games.navLabel')}</span>
         </button>
       </nav>
 

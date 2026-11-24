@@ -468,5 +468,21 @@ export const en: TranslationSchema = {
     relativitySub: 'Lorentz/Kerr clocks, gravitational lensing & first-person plunge',
     kesslerTitle: 'Kessler Syndrome & LEO Satellite Map',
     kesslerSub: '2,000+ LEO/MEO/GEO satellites & cascading orbital debris field'
+  },
+  games: {
+    navLabel: 'Games',
+    hubTitle: '3D Space Game Arcade Hub',
+    hubSubtitle: '5 character-driven 3D space games with real gravity & dual-thumb mobile gamepad',
+    playNow: 'Play Now',
+    survivorTitle: 'Astro Survivor 3D',
+    survivorSub: 'Combat astronaut roguelike across Mars, Enceladus & Io with Jetpack Dash, 5 upgradeable skills & Planetary Bosses.',
+    odysseyTitle: 'Astro Jetpack Odyssey',
+    odysseySub: '3D jetpack parkour with mini TARS under real 0.11g–0.90g gravity; collect 5 Quantum Cores for S-Rank speedruns.',
+    mechTitle: 'Orbital Mech Arena 3D',
+    mechSub: 'Pilot an 8m Space Mech with Plasma & Railgun cannons, activate Overdrive vs Boss Titan & upgrade hangar armor.',
+    minerTitle: 'Exo-Miner Survival 3D',
+    minerSub: 'Laser-mine exotic crystal veins, manage O2 & battery, sell ore at your 3D Habitat Base & deploy 3 Auto-Defense Turrets.',
+    rescueTitle: 'Zero-G Space Rescue',
+    rescueSub: 'Float outside an orbital station in Zero-G, grapple tether to 4 Reactor Cores, clear parasites & stabilize before 0s.'
   }
 };

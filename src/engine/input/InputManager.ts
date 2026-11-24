@@ -1,3 +1,5 @@
+import { useAppStore } from '@/stores/useAppStore';
+
 export class InputManager {
   private static instance: InputManager;
 
@@ -72,10 +74,29 @@ export class InputManager {
   private handleKeyDown = (e: KeyboardEvent): void => {
     // Avoid capturing inputs if typing inside form fields or using OS/browser modifier shortcuts
     const target = e.target as HTMLElement | null;
-    if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+    if (
+      target &&
+      (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)
+    ) {
+      return;
+    }
     if (e.metaKey) return;
     // Allow standalone Control/Alt precision flight keys while ignoring browser combos (Ctrl+R, Ctrl+K, Alt+Left)
     if ((e.ctrlKey || e.altKey) && e.key !== 'Control' && e.key !== 'Alt') return;
+
+    // Prevent Space / Arrow keys from activating focused HUD buttons or scrolling during active 3D Space Games (G1)
+    const activeGame = useAppStore.getState().activeSpaceGame;
+    if (
+      activeGame !== 'none' &&
+      (e.code === 'Space' ||
+        e.key === ' ' ||
+        e.code === 'ArrowUp' ||
+        e.code === 'ArrowDown' ||
+        e.code === 'ArrowLeft' ||
+        e.code === 'ArrowRight')
+    ) {
+      e.preventDefault();
+    }
 
     this.keys[e.key.toLowerCase()] = true;
     this.keys[e.code] = true;

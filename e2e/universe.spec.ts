@@ -1278,4 +1278,164 @@ test.describe('3D Universe Engine — Production & VIP Observatory E2E Suite', (
     expect(finalOverflow).toBeLessThanOrEqual(0);
     expect(consoleErrors).toEqual([]);
   });
+
+  test('verifies mobile touch zoom/controls stability & launches all 5 Space Games across Desktop and Mobile (SPEC-UNIV-2026-11-24-001)', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(150000);
+    const consoleErrors: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') consoleErrors.push(msg.text());
+    });
+    page.on('pageerror', (err) => consoleErrors.push(err.message));
+
+    const isDesktop = testInfo.project.name === 'chromium';
+    const isMobile = !isDesktop;
+    if (isDesktop) {
+      await page.setViewportSize({ width: 1440, height: 900 });
+    } else {
+      await page.setViewportSize({ width: 390, height: 844 });
+    }
+
+    const shotsDir = path.resolve(process.cwd(), '.tmp/task-report/space-games-mobile-shots');
+    fs.mkdirSync(shotsDir, { recursive: true });
+
+    await page.goto('/');
+    await expect(page.locator('main[data-cinema-ibl="ready"]')).toBeVisible({ timeout: 25000 });
+    await page.waitForTimeout(450);
+
+    // 1. Verify mobile touch zoom controls, touch-action:none, TargetHUD collapse & zero overlap on 390x844
+    if (isMobile) {
+      const canvasTouchAction = await page.locator('canvas').first().evaluate(
+        (el) => getComputedStyle(el).touchAction
+      );
+      expect(canvasTouchAction).toBe('none');
+
+      const zoomBar = page.getByTestId('mobile-zoom-controls');
+      await expect(zoomBar).toBeVisible();
+      await page.getByTestId('mobile-zoom-in-btn').click();
+      await page.getByTestId('mobile-zoom-out-btn').click();
+      await page.getByTestId('mobile-zoom-reset-btn').click();
+
+      // Verify zero overlap between mobile-zoom-controls and TargetHUD
+      const zoomBox = await zoomBar.boundingBox();
+      const targetBox = await page.getByTestId('target-hud-panel').boundingBox();
+      expect(zoomBox).not.toBeNull();
+      expect(targetBox).not.toBeNull();
+      if (zoomBox && targetBox) {
+        const overlaps =
+          zoomBox.x < targetBox.x + targetBox.width &&
+          zoomBox.x + zoomBox.width > targetBox.x &&
+          zoomBox.y < targetBox.y + targetBox.height &&
+          zoomBox.y + zoomBox.height > targetBox.y;
+        expect(overlaps).toBe(false);
+      }
+
+      // Verify 1-tap TargetHUD collapse gives clean wide view
+      await page.screenshot({ path: path.join(shotsDir, 'mobile-solar-ux.png') });
+      await page.getByTestId('target-hud-collapse-btn').click();
+      await page.waitForTimeout(200);
+      await page.getByTestId('target-hud-collapse-btn').click();
+    }
+
+    // Helper to open Space Game Hub via SuperNav
+    const openGameHub = async () => {
+      const navBtn = page.getByTestId('space-games-nav-btn');
+      await navBtn.scrollIntoViewIfNeeded();
+      await navBtn.click();
+      await expect(page.getByTestId('space-game-hub-modal')).toBeVisible({ timeout: 8000 });
+    };
+
+    // 2. Open Space Game Hub -> capture Desktop & Mobile screenshots -> verify Escape closes Hub
+    await openGameHub();
+    await page.waitForTimeout(220);
+    await page.screenshot({
+      path: path.join(shotsDir, isDesktop ? 'game-hub-desktop.png' : 'game-hub-mobile.png'),
+    });
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('space-game-hub-modal')).toHaveCount(0);
+
+    // 3. Game 1: Astro Survivor 3D (Mars -> Enceladus) + mobile virtual gamepad check
+    await openGameHub();
+    await page.getByTestId('launch-game-astro_survivor').click();
+    await expect(page.getByTestId('astro-survivor-hud')).toBeVisible({ timeout: 12000 });
+    await page.getByTestId('survivor-arena-enceladus').click();
+    await page.waitForTimeout(700);
+    if (isMobile) {
+      await expect(page.getByTestId('mobile-game-controls')).toBeVisible();
+      await expect(page.getByTestId('mobile-zoom-controls')).toHaveCount(0);
+    }
+    await page.screenshot({
+      path: path.join(shotsDir, isDesktop ? 'game-astro-survivor.png' : 'game-astro-survivor-mobile.png'),
+    });
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('astro-survivor-hud')).toHaveCount(0);
+
+    // 4. Game 2: Astro Jetpack Odyssey (Enceladus 0.11g)
+    await openGameHub();
+    await page.getByTestId('launch-game-jetpack_odyssey').click();
+    await expect(page.getByTestId('jetpack-odyssey-hud')).toBeVisible({ timeout: 12000 });
+    await page.getByTestId('odyssey-world-enceladus').click();
+    await page.waitForTimeout(700);
+    if (isDesktop) {
+      await page.screenshot({ path: path.join(shotsDir, 'game-jetpack-odyssey.png') });
+    }
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('jetpack-odyssey-hud')).toHaveCount(0);
+
+    // 5. Game 3: Orbital Mech Arena 3D (+ Hangar drawer check)
+    await openGameHub();
+    await page.getByTestId('launch-game-mech_arena').click();
+    await expect(page.getByTestId('mech-arena-hud')).toBeVisible({ timeout: 12000 });
+    await page.waitForTimeout(700);
+    if (isDesktop) {
+      await page.screenshot({ path: path.join(shotsDir, 'game-mech-arena.png') });
+    }
+    await page.getByTestId('mech-hangar-btn').click();
+    await expect(page.getByTestId('mech-hangar-modal')).toBeVisible();
+    // 1st Escape closes Hangar drawer cleanly without exiting the active match (G3/U1)
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('mech-hangar-modal')).toHaveCount(0);
+    await expect(page.getByTestId('mech-arena-hud')).toBeVisible();
+    // 2nd Escape exits Mech Arena back to Solar System
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('mech-arena-hud')).toHaveCount(0);
+
+    // 6. Game 4: Exo-Miner Survival 3D (+ Base Shop Escape layering check)
+    await openGameHub();
+    await page.getByTestId('launch-game-exo_miner').click();
+    await expect(page.getByTestId('exo-miner-hud')).toBeVisible({ timeout: 12000 });
+    await page.waitForTimeout(700);
+    if (isDesktop) {
+      await page.screenshot({ path: path.join(shotsDir, 'game-exo-miner.png') });
+    }
+    await page.getByTestId('miner-base-shop-btn').click();
+    await expect(page.getByTestId('miner-shop-modal')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('miner-shop-modal')).toHaveCount(0);
+    await expect(page.getByTestId('exo-miner-hud')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('exo-miner-hud')).toHaveCount(0);
+
+    // 7. Game 5: Zero-G Space Rescue
+    await openGameHub();
+    await page.getByTestId('launch-game-zero_g_rescue').click();
+    await expect(page.getByTestId('zero-g-rescue-hud')).toBeVisible({ timeout: 12000 });
+    await expect(page.getByTestId('zero-g-rescue-hud')).toContainText('ALPHA');
+    await expect(page.getByTestId('zero-g-rescue-hud')).toContainText('DELTA');
+    await page.waitForTimeout(700);
+    if (isDesktop) {
+      await page.screenshot({ path: path.join(shotsDir, 'game-zero-g-rescue.png') });
+    }
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('zero-g-rescue-hud')).toHaveCount(0);
+
+    // Confirm Solar System UI restored with zero horizontal overflow and zero console errors
+    await expect(page.getByTestId('space-games-nav-btn')).toBeVisible();
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+    expect(consoleErrors).toEqual([]);
+  });
 });

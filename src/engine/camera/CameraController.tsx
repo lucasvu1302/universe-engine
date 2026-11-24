@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CameraManager } from './CameraManager';
+import { TouchOrbitGestureEngine } from './TouchOrbitGestureEngine';
 import { InputManager } from '../input/InputManager';
 import { useAppStore } from '@/stores/useAppStore';
 
@@ -11,10 +12,6 @@ export const CameraController: React.FC = () => {
   const input = InputManager.getInstance();
 
   const cameraMode = useAppStore((state) => state.cameraMode);
-  const isDragging = useRef(false);
-  const isPanning = useRef(false);
-  const prevPointer = useRef({ x: 0, y: 0 });
-  const touchDistance = useRef<number | null>(null);
   const flightKeysRef = useRef({
     forward: false,
     backward: false,
@@ -24,7 +21,7 @@ export const CameraController: React.FC = () => {
     down: false,
     boost: false,
     precision: false,
-    brake: false
+    brake: false,
   });
 
   useEffect(() => {
@@ -40,89 +37,159 @@ export const CameraController: React.FC = () => {
     camManager.state = cameraMode;
   }, [cameraMode, camManager, input]);
 
-  // Handle pointer & touch interactions
+  // Unified multi-pointer mouse & mobile touch gesture handling (ADR-UNIV-2026-11-24-001)
   useEffect(() => {
     const dom = gl.domElement;
+    const prevTouchAction = dom.style.touchAction;
+    dom.style.touchAction = 'none';
+
+    const canOrbitControl = (): boolean => {
+      if (camManager.activeScenario === 'earth_launch') return false;
+      const st = useAppStore.getState();
+      if (st.cinemaMode || st.activeSpaceGame !== 'none' || st.gameHubOpen) return false;
+      return camManager.state === 'ORBIT' || camManager.state === 'GALAXY';
+    };
+
+    const gestureEngine = new TouchOrbitGestureEngine({
+      onRotate: (dTheta, dPhi) => {
+        if (canOrbitControl()) {
+          camManager.rotateOrbit(dTheta, dPhi);
+        }
+      },
+      onPan: (dx, dy) => {
+        if (canOrbitControl()) {
+          camManager.panOrbit(dx, dy);
+        }
+      },
+      onZoom: (deltaRaw) => {
+        if (canOrbitControl()) {
+          camManager.zoomOrbit(deltaRaw);
+        }
+      },
+      onReleaseInertia: (vTheta, vPhi) => {
+        if (canOrbitControl()) {
+          camManager.setOrbitInertia(vTheta, vPhi);
+        }
+      },
+      onClearInertia: () => {
+        camManager.clearOrbitInertia();
+      },
+      onDoubleTap: () => {
+        if (canOrbitControl()) {
+          camManager.triggerDoubleTapZoom();
+        }
+      },
+    });
 
     const onPointerDown = (e: PointerEvent) => {
-      isDragging.current = true;
-      isPanning.current = e.button === 2 || e.button === 1 || e.shiftKey;
-      prevPointer.current = { x: e.clientX, y: e.clientY };
+      if (!canOrbitControl()) return;
+      gestureEngine.onPointerDown(
+        {
+          pointerId: e.pointerId,
+          pointerType: e.pointerType || 'mouse',
+          clientX: e.clientX,
+          clientY: e.clientY,
+          button: e.button,
+          shiftKey: e.shiftKey,
+        },
+        performance.now()
+      );
     };
 
     const onPointerMove = (e: PointerEvent) => {
-      if (!isDragging.current) return;
-
-      const deltaX = e.clientX - prevPointer.current.x;
-      const deltaY = e.clientY - prevPointer.current.y;
-      prevPointer.current = { x: e.clientX, y: e.clientY };
-
-      if (camManager.activeScenario === 'earth_launch') return;
-
-      if (camManager.state === 'ORBIT' || camManager.state === 'GALAXY') {
-        if (isPanning.current) {
-          camManager.panOrbit(deltaX, deltaY);
-        } else {
-          const rotSpeed = 0.0045;
-          camManager.rotateOrbit(deltaX * rotSpeed, deltaY * rotSpeed);
-        }
+      if (gestureEngine.getActivePointerCount() === 0) return;
+      if (!canOrbitControl()) {
+        gestureEngine.reset();
+        return;
       }
+      // Recover cleanly if desktop mouse button was released over native contextmenu / outside viewport
+      if (e.pointerType === 'mouse' && e.buttons === 0) {
+        gestureEngine.onPointerCancel(e.pointerId);
+        return;
+      }
+      gestureEngine.onPointerMove(
+        {
+          pointerId: e.pointerId,
+          pointerType: e.pointerType || 'mouse',
+          clientX: e.clientX,
+          clientY: e.clientY,
+          button: e.button,
+          shiftKey: e.shiftKey,
+        },
+        performance.now()
+      );
     };
 
-    const onPointerUp = () => {
-      isDragging.current = false;
-      isPanning.current = false;
+    const onPointerUp = (e: PointerEvent) => {
+      if (gestureEngine.getActivePointerCount() === 0) return;
+      gestureEngine.onPointerUp(
+        {
+          pointerId: e.pointerId,
+          pointerType: e.pointerType || 'mouse',
+          clientX: e.clientX,
+          clientY: e.clientY,
+          button: e.button,
+          shiftKey: e.shiftKey,
+        },
+        performance.now()
+      );
+    };
+
+    const onPointerCancel = (e: PointerEvent) => {
+      gestureEngine.onPointerCancel(e.pointerId);
+    };
+
+    const onWindowBlur = () => {
+      gestureEngine.reset();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        gestureEngine.reset();
+      }
     };
 
     const onContextMenu = (e: MouseEvent) => {
       e.preventDefault();
     };
 
+    // Prevent iOS Safari / Android Chrome from hijacking two-finger pinch or rubber-band scroll on WebGL canvas
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length >= 2 || e.cancelable) {
+        e.preventDefault();
+      }
+    };
+
     // Smooth exponential wheel zoom
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      if (camManager.activeScenario === 'earth_launch') return;
-      if (camManager.state === 'ORBIT' || camManager.state === 'GALAXY') {
+      if (canOrbitControl()) {
         camManager.zoomOrbit(e.deltaY);
       }
-    };
-
-    // Mobile Pinch-to-Zoom
-    const onTouchMove = (e: TouchEvent) => {
-      if (camManager.activeScenario === 'earth_launch') return;
-      if (e.touches.length === 2 && (camManager.state === 'ORBIT' || camManager.state === 'GALAXY')) {
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dy = e.touches[0].clientY - e.touches[1].clientY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (touchDistance.current !== null) {
-          const delta = (touchDistance.current - dist) * 2.5;
-          camManager.zoomOrbit(delta);
-        }
-        touchDistance.current = dist;
-      }
-    };
-
-    const onTouchEnd = () => {
-      touchDistance.current = null;
     };
 
     dom.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerCancel);
+    window.addEventListener('blur', onWindowBlur);
+    document.addEventListener('visibilitychange', onVisibilityChange);
     dom.addEventListener('contextmenu', onContextMenu);
     dom.addEventListener('wheel', onWheel, { passive: false });
-    dom.addEventListener('touchmove', onTouchMove, { passive: true });
-    dom.addEventListener('touchend', onTouchEnd);
+    dom.addEventListener('touchmove', onTouchMove, { passive: false });
 
     return () => {
+      gestureEngine.reset();
+      dom.style.touchAction = prevTouchAction;
       dom.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerCancel);
+      window.removeEventListener('blur', onWindowBlur);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       dom.removeEventListener('contextmenu', onContextMenu);
       dom.removeEventListener('wheel', onWheel);
       dom.removeEventListener('touchmove', onTouchMove);
-      dom.removeEventListener('touchend', onTouchEnd);
     };
   }, [gl, camManager]);
 
@@ -133,14 +200,21 @@ export const CameraController: React.FC = () => {
       return;
     }
 
+    // Active Space Games own the camera exclusively — must precede TRANSITIONING checks (G5)
+    const storeState = useAppStore.getState();
+    if (storeState.activeSpaceGame !== 'none') {
+      input.resetDeltas();
+      return;
+    }
+
     if (camManager.state === 'TRANSITIONING') {
       input.resetDeltas();
       camManager.updateTransition(delta);
       return;
     }
 
-    // Do not overwrite CinematicDirector's choreographed camera while cinemaMode is active
-    if (useAppStore.getState().cinemaMode) {
+    // Do not overwrite CinematicDirector or run Free Flight behind open Game Hub modal
+    if (storeState.cinemaMode) {
       input.resetDeltas();
       return;
     }
@@ -168,6 +242,10 @@ export const CameraController: React.FC = () => {
 
       camManager.updateOrbit(delta);
     } else if (camManager.state === 'FREE_FLIGHT') {
+      if (storeState.gameHubOpen) {
+        input.resetDeltas();
+        return;
+      }
       const fk = flightKeysRef.current;
       fk.forward = input.isKeyPressed('w') || input.isKeyPressed('KeyW');
       fk.backward = input.isKeyPressed('s') || input.isKeyPressed('KeyS');

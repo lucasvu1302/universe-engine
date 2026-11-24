@@ -468,5 +468,21 @@ export const vi: TranslationSchema = {
     relativitySub: 'Đồng hồ giãn nở thời gian, thấu kính hấp dẫn & góc nhìn rơi tự do',
     kesslerTitle: 'Hội Chứng Kessler & Vệ Tinh Quỹ Đạo LEO',
     kesslerSub: 'Hơn 2.000 vệ tinh LEO/MEO/GEO & va chạm rác vũ trụ dây chuyền'
+  },
+  games: {
+    navLabel: 'Trò Chơi',
+    hubTitle: 'Trung Tâm Trò Chơi Vũ Trụ 3D',
+    hubSubtitle: '5 chế độ hành động có nhân vật 3D, trọng lực thực & tay cầm cảm ứng',
+    playNow: 'Chơi Ngay',
+    survivorTitle: 'Astro Survivor 3D',
+    survivorSub: 'Phi hành gia chiến đấu sinh tồn qua các đợt quái, nâng cấp 5 kỹ năng & hạ Boss trên Sao Hỏa, Enceladus và Io.',
+    odysseyTitle: 'Astro Jetpack Odyssey',
+    odysseySub: 'Parkour 3D cùng TARS trên trọng lực thực 0.11g–0.90g, thu 5 Lõi Lượng Tử & phá kỷ lục Speedrun hạng S.',
+    mechTitle: 'Orbital Mech Arena 3D',
+    mechSub: 'Điều khiển Chiến Giáp 8m bắn Pháo Plasma & Railgun, kích hoạt Overdrive hạ Boss Titan và nâng cấp xưởng giáp.',
+    minerTitle: 'Exo-Miner Survival 3D',
+    minerSub: 'Khai thác tinh thể bằng tia laser, quản lý Oxy/Pin, bảo vệ Căn Cứ 3D bằng 3 Tháp Pháo Tự Động qua bão bụi đêm.',
+    rescueTitle: 'Zero-G Space Rescue',
+    rescueSub: 'Đặc nhiệm không trọng lực bay ngoài trạm quỹ đạo, bắn móc kéo từ tính, diệt ký sinh & sửa 4 Lõi Lò Phản Ứng.'
   }
 };

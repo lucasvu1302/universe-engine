@@ -57,6 +57,13 @@ import { RelativityLabHUD } from '@/ui/RelativityLabHUD';
 import { KesslerOrbitalHUD } from '@/ui/KesslerOrbitalHUD';
 import { SandboxToolbar } from '@/ui/SandboxToolbar';
 import { TarsHologram } from '@/ui/TarsHologram';
+import { MobileZoomControls } from '@/ui/MobileZoomControls';
+import { SpaceGameHubModal } from '@/ui/SpaceGames/SpaceGameHubModal';
+import { AstroSurvivorHUD } from '@/ui/SpaceGames/AstroSurvivorHUD';
+import { JetpackOdysseyHUD } from '@/ui/SpaceGames/JetpackOdysseyHUD';
+import { MechArenaHUD } from '@/ui/SpaceGames/MechArenaHUD';
+import { ExoMinerHUD } from '@/ui/SpaceGames/ExoMinerHUD';
+import { ZeroGRescueHUD } from '@/ui/SpaceGames/ZeroGRescueHUD';
 import { CinematicDirector } from '@/engine/camera/CinematicDirector';
 import { HarmonicesMundiSynth } from '@/engine/audio/HarmonicesMundiSynth';
 import { AstroCopilot } from '@/engine/ai/AstroCopilot';
@@ -103,6 +110,23 @@ const RelativityLabScene = React.lazy(() =>
 );
 const KesslerOrbitalScene = React.lazy(() =>
   import('@/scenes/CosmicLabs/KesslerOrbitalScene').then((m) => ({ default: m.KesslerOrbitalScene }))
+);
+
+// Space Game Hub — 5 Lazy-Loaded Standalone 3D Character Games (SPEC-UNIV-2026-11-24-001)
+const AstroSurvivorScene = React.lazy(() =>
+  import('@/scenes/SpaceGames/AstroSurvivorScene').then((m) => ({ default: m.AstroSurvivorScene }))
+);
+const JetpackOdysseyScene = React.lazy(() =>
+  import('@/scenes/SpaceGames/JetpackOdysseyScene').then((m) => ({ default: m.JetpackOdysseyScene }))
+);
+const MechArenaScene = React.lazy(() =>
+  import('@/scenes/SpaceGames/MechArenaScene').then((m) => ({ default: m.MechArenaScene }))
+);
+const ExoMinerScene = React.lazy(() =>
+  import('@/scenes/SpaceGames/ExoMinerScene').then((m) => ({ default: m.ExoMinerScene }))
+);
+const ZeroGRescueScene = React.lazy(() =>
+  import('@/scenes/SpaceGames/ZeroGRescueScene').then((m) => ({ default: m.ZeroGRescueScene }))
 );
 
 // Error Boundary for React UI stability
@@ -198,6 +222,7 @@ const UniverseScene: React.FC = () => {
   const activeSurface = useAppStore((state) => state.activeSurface);
   const activeEventSurfaceId = useAppStore((state) => state.activeEventSurfaceId);
   const activeCosmicLab = useAppStore((state) => state.activeCosmicLab);
+  const activeSpaceGame = useAppStore((state) => state.activeSpaceGame);
   const inExoSystem = useAppStore((state) => state.inExoSystem);
   const setInExoSystem = useAppStore((state) => state.setInExoSystem);
   const reEntryActive = useAppStore((state) => state.reEntryActive);
@@ -269,6 +294,13 @@ const UniverseScene: React.FC = () => {
         {activeCosmicLab === 'dyson_megastructure' && <DysonMegastructureScene />}
         {activeCosmicLab === 'relativity_lab' && <RelativityLabScene />}
         {activeCosmicLab === 'kessler_leo' && <KesslerOrbitalScene />}
+
+        {/* 2c. Space Game Hub 3D Scenes (5 independent lazy chunks inside inner Suspense) */}
+        {activeSpaceGame === 'astro_survivor' && <AstroSurvivorScene />}
+        {activeSpaceGame === 'jetpack_odyssey' && <JetpackOdysseyScene />}
+        {activeSpaceGame === 'mech_arena' && <MechArenaScene />}
+        {activeSpaceGame === 'exo_miner' && <ExoMinerScene />}
+        {activeSpaceGame === 'zero_g_rescue' && <ZeroGRescueScene />}
       </Suspense>
 
       {/* 3. Miller's Ocean World Exosystem through Wormhole */}
@@ -284,6 +316,7 @@ const UniverseScene: React.FC = () => {
         activeSurface === 'none' &&
         activeEventSurfaceId === null &&
         activeCosmicLab === 'none' &&
+        activeSpaceGame === 'none' &&
         !inExoSystem && (
         <>
           <SolarSystemScene
@@ -311,6 +344,7 @@ export default function App() {
   const activeSurface = useAppStore((state) => state.activeSurface);
   const activeEventSurfaceId = useAppStore((state) => state.activeEventSurfaceId);
   const activeCosmicLab = useAppStore((state) => state.activeCosmicLab);
+  const activeSpaceGame = useAppStore((state) => state.activeSpaceGame);
   const solarStormActive = useAppStore((state) => state.solarStormActive);
   const missionPlannerOpen = useAppStore((state) => state.missionPlannerOpen);
   const inExoSystem = useAppStore((state) => state.inExoSystem);
@@ -405,32 +439,56 @@ export default function App() {
       if (e.key === 'Escape') {
         const s = useAppStore.getState();
         if (s.isCommandPaletteOpen) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
           s.setCommandPaletteOpen(false);
           return;
         }
         if (isTextInput) return;
         if (s.isSettingsOpen) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
           s.setSettingsOpen(false);
           return;
         }
+        if (s.gameHubOpen) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          s.setGameHubOpen(false);
+          return;
+        }
         if (s.scaleExplorer) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
           s.setScaleExplorer(false);
           return;
         }
         if (s.photoMode) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
           s.setPhotoMode(false);
           return;
         }
-        if (s.compareMode) {
-          s.setCompareMode(false);
-          return;
-        }
         if (s.isSandboxOpen) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
           setSandboxOpen(false);
           return;
         }
         if (s.isTarsOpen) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
           setTarsOpen(false);
+          return;
+        }
+        if (s.activeSpaceGame !== 'none') {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          ModeOrchestrator.getInstance().exitSpaceGame();
+          return;
+        }
+        if (s.compareMode) {
+          s.setCompareMode(false);
           return;
         }
         if (s.activeTour) {
@@ -486,6 +544,10 @@ export default function App() {
       // Preserve browser/OS shortcuts such as Cmd+R, Ctrl+R, Cmd+M, Alt+*
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
 
+      // Suppress global Observatory single-key hotkeys (C/T/B/M/R) while playing Space Games or browsing Game Hub
+      const curState = useAppStore.getState();
+      if (curState.activeSpaceGame !== 'none' || curState.gameHubOpen) return;
+
       if (e.key === 'c' || e.key === 'C') {
         e.preventDefault();
         const director = CinematicDirector.getInstance();
@@ -524,11 +586,12 @@ export default function App() {
     activeSurface !== 'none' ||
     activeEventSurfaceId !== null ||
     activeCosmicLab !== 'none' ||
+    activeSpaceGame !== 'none' ||
     inExoSystem;
 
   return (
     <ErrorBoundary>
-      <main className="relative w-screen h-screen overflow-hidden bg-[#020204]">
+      <main className="relative w-screen h-[100dvh] overflow-hidden overscroll-none bg-[#020204]">
         {/* Three.js 3D WebGL Canvas with ACES Filmic Tone Mapping & Soft Shadows */}
         <Canvas
           shadows
@@ -548,7 +611,7 @@ export default function App() {
             near: 0.1,
             far: 80000
           }}
-          className="w-full h-full cursor-grab active:cursor-grabbing"
+          className="w-full h-full touch-none cursor-grab active:cursor-grabbing"
         >
           <Suspense fallback={null}>
             <EngineLoop />
@@ -592,6 +655,7 @@ export default function App() {
 
         {/* User Interface HUD Layer */}
         {activeScenario === 'none' && !photoMode && !cinemaMode && !isStandaloneView && <SuperNav />}
+        <MobileZoomControls scenarioActive={activeScenario !== 'none'} />
         {activeScenario === 'none' && !photoMode && !cinemaMode && !isStandaloneView && !activeTour && !compareMode && !solarStormActive && !missionPlannerOpen && cameraMode !== 'GALAXY' && cameraMode !== 'FREE_FLIGHT' && <SolarRadarHUD />}
         {activeScenario === 'none' && !photoMode && !cinemaMode && !isStandaloneView && !activeTour && cameraMode !== 'FREE_FLIGHT' && <TimeControls />}
         {activeScenario === 'none' && !photoMode && !cinemaMode && !isStandaloneView && cameraMode !== 'FREE_FLIGHT' && !compareMode && !activeTour && !solarStormActive && !missionPlannerOpen && <TargetHUD />}
@@ -616,6 +680,14 @@ export default function App() {
         {activeCosmicLab === 'dyson_megastructure' && <DysonMegastructureHUD />}
         {activeCosmicLab === 'relativity_lab' && <RelativityLabHUD />}
         {activeCosmicLab === 'kessler_leo' && <KesslerOrbitalHUD />}
+
+        {/* Space Game Hub 3D Game HUDs & Hub Modal (SPEC-UNIV-2026-11-24-001) */}
+        {activeSpaceGame === 'astro_survivor' && <AstroSurvivorHUD />}
+        {activeSpaceGame === 'jetpack_odyssey' && <JetpackOdysseyHUD />}
+        {activeSpaceGame === 'mech_arena' && <MechArenaHUD />}
+        {activeSpaceGame === 'exo_miner' && <ExoMinerHUD />}
+        {activeSpaceGame === 'zero_g_rescue' && <ZeroGRescueHUD />}
+        <SpaceGameHubModal />
 
         {/* Surface Landing Telemetry HUD (Mars, Moon, Europa & Titan) */}
         {activeSurface !== 'none' && (

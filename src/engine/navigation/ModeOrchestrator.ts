@@ -1,4 +1,4 @@
-import { ActiveCosmicLab, ActiveSurface, useAppStore } from '@/stores/useAppStore';
+import { ActiveCosmicLab, ActiveSpaceGame, ActiveSurface, useAppStore } from '@/stores/useAppStore';
 import { CameraManager } from '@/engine/camera/CameraManager';
 import { CinematicDirector } from '@/engine/camera/CinematicDirector';
 import { SimulationManager } from '@/simulation/core/SimulationManager';
@@ -55,12 +55,17 @@ export class ModeOrchestrator {
 
     useAppStore.setState({
       compareMode: false,
+      scaleExplorer: false,
       activeTour: false,
       photoMode: false,
       inExoSystem: false,
       activeSurface: 'none',
       activeEventSurfaceId: null,
       activeCosmicLab: 'none',
+      activeSpaceGame: 'none',
+      gameHubOpen: false,
+      isSandboxOpen: false,
+      isTarsOpen: false,
       solarStormActive: false,
       missionPlannerOpen: false,
       missionLaunching: false,
@@ -223,6 +228,33 @@ export class ModeOrchestrator {
     } else {
       cam.flyToSolarSystemOverview();
     }
+  }
+
+  public enterSpaceGame(game: Exclude<ActiveSpaceGame, 'none'>): void {
+    this.clearExclusiveSystems();
+    useAppStore.setState({
+      activeSpaceGame: game,
+      gameHubOpen: false,
+      cameraMode: 'ORBIT',
+    });
+    useAppStore.getState().recordRecentExperience(`game_${game}`);
+    CameraManager.getInstance().setSpaceGameMode(game);
+  }
+
+  public exitSpaceGame(): void {
+    this.cancelPendingTakeoff();
+    useAppStore.setState({
+      activeSpaceGame: 'none',
+      gameHubOpen: false,
+      cameraMode: 'ORBIT',
+    });
+    const cam = CameraManager.getInstance();
+    if (cam.camera) {
+      cam.camera.up.set(0, 1, 0);
+    }
+    cam.clearOrbitInertia();
+    cam.setFov(50);
+    cam.flyToSolarSystemOverview();
   }
 
   public exitAllModes(): void {

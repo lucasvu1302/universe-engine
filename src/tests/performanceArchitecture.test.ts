@@ -456,10 +456,11 @@ describe('Graphics Performance Architecture (SPEC-UNIVERSE-2026-11-17-001)', () 
       cineDirector.enterCinemaMode('SLINGSHOT');
       cineDirector.update(0.016);
 
-      // Ensure CameraManager is actively in ORBIT tracking 'earth' during the 100-frame hot loop
+      // Ensure CameraManager is actively in ORBIT tracking 'earth' with active touch inertia during the 100-frame hot loop
       camManager.state = 'ORBIT';
       camManager.activeFocusId = 'earth';
       camManager.activeScenario = 'none';
+      camManager.setOrbitInertia(2.4, -0.7);
 
       const jwstGroup = new THREE.Group();
       const jwstDetailGroup = new THREE.Group();
@@ -513,6 +514,33 @@ describe('Graphics Performance Architecture (SPEC-UNIVERSE-2026-11-17-001)', () 
       expect(issSrc).toMatch(/25/);
       expect(jwstSrc).toContain('raycast');
       expect(issSrc).toContain('raycast');
+    });
+  });
+
+  describe('R6.a (SPEC-UNIV-2026-11-24-001): Space Games GPU discipline (0 point/spot lights, NOOP_RAYCAST, disposal & <=15Hz HUD throttle)', () => {
+    it('keeps all 5 Space Game 3D scenes free of dynamic point/spot lights, disposes local GPU assets, uses NOOP_RAYCAST & HUD throttling', () => {
+      const gameScenes = [
+        'scenes/SpaceGames/AstroSurvivorScene.tsx',
+        'scenes/SpaceGames/JetpackOdysseyScene.tsx',
+        'scenes/SpaceGames/MechArenaScene.tsx',
+        'scenes/SpaceGames/ExoMinerScene.tsx',
+        'scenes/SpaceGames/ZeroGRescueScene.tsx',
+      ];
+
+      for (const file of gameScenes) {
+        const src = readSrc(file);
+        expect(src, `${file} must not create dynamic pointLight`).not.toContain('<pointLight');
+        expect(src, `${file} must not create dynamic spotLight`).not.toContain('<spotLight');
+        expect(src, `${file} must disable decorative raycast via NOOP_RAYCAST`).toContain('NOOP_RAYCAST');
+        expect(src, `${file} must dispose local character/prop trees`).toContain('disposeObjectTree');
+        expect(src, `${file} must dispose local geometries/materials`).toContain('.dispose()');
+        expect(src, `${file} must throttle HUD pushes via createHudThrottle`).toContain('createHudThrottle');
+        // M1 regression guard: every InstancedMesh in SpaceGames must set frustumCulled={false}
+        const instancedBlocks = src.match(/<instancedMesh[\s\S]*?\/>/g) ?? [];
+        for (const block of instancedBlocks) {
+          expect(block, `${file} InstancedMesh must disable frustum culling`).toContain('frustumCulled={false}');
+        }
+      }
     });
   });
 });

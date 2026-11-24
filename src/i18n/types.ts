@@ -275,4 +275,20 @@ export interface TranslationSchema {
     kesslerTitle: string;
     kesslerSub: string;
   };
+  games: {
+    navLabel: string;
+    hubTitle: string;
+    hubSubtitle: string;
+    playNow: string;
+    survivorTitle: string;
+    survivorSub: string;
+    odysseyTitle: string;
+    odysseySub: string;
+    mechTitle: string;
+    mechSub: string;
+    minerTitle: string;
+    minerSub: string;
+    rescueTitle: string;
+    rescueSub: string;
+  };
 }
